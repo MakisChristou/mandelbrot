@@ -5,8 +5,8 @@
 #include <math.h>
 
 // Global Declarations
-int image_width = 1000;
-int image_height = 1000; 
+int image_width = 5000;
+int image_height = 5000; 
 
 long double output_start = -2.0f;
 long double output_end = 2.0f;
@@ -18,7 +18,8 @@ long double output_end = 2.0f;
 // long double output_end = 0.5f;
 
 
-int n_max = 4096; // 4096
+
+int n_max = 128; // 4096
 
 int s_max = 1; // anti-aliasing
 
@@ -29,6 +30,20 @@ typedef struct Color
     int R;
     int G;
     int B;
+
+    Color()
+    {
+        R = 0;
+        G = 0;
+        B = 0;
+    }
+
+    Color(int r, int g, int b)
+    {
+        R = r;
+        G = g;
+        B = b;
+    }
 };
 
 typedef struct Complex
@@ -36,7 +51,6 @@ typedef struct Complex
     long double Re;
     long double Im;
 };
-
 
 typedef struct cIterations
 {
@@ -63,39 +77,81 @@ long double smoothColor(int n, Complex c)
     return 1.0 + N - log(log(sqrt(Zr*Zr + Zi*Zi)));
 }
 
+// Stolen code from https://github.com/sevity/mandelbrot
+inline Color linear_interpolation(const Color& v, const Color& u, double a)
+{
+	auto const b = 1 - a;
+	return Color(b * v.R + a * u.R, b*v.G + a * u.G, b*v.B + a * u.B);
+}
+
 // Prints PPM in std
-void writePPM(std::vector<std::vector<int>> IterationCounts, std::vector<std::vector<Complex>> IterationValues, std::vector<Color> colorPalete)
+void writePPM(std::vector<std::vector<int>> IterationCounts, std::vector<std::vector<Complex>> IterationValues, std::vector<Color> colors)
 {
     std::cout << "P3\n" << image_width << ' ' << image_height << "\n255\n";
 
-
     for(int j = image_height-1; j >=0; --j)
-    {    
+    {
+        std::cerr << "\rScanlines remaining: " << j << " " <<  std::flush;
+
+
         for(int i = 0; i < image_width; ++i)
         {
+            
+            int iter = IterationCounts[i][j];
+            
+            // Stolen Code from https://github.com/sevity/mandelbrot
+            static const auto max_color = colors.size() - 1;
+			// if (iter == n_max)iter = 0;
+			double mu = 1.0*iter / n_max;
+			//scale mu to be in the range of colors
+			mu *= max_color;
+			auto i_mu = static_cast<size_t>(mu);
+			auto color1 = colors[i_mu];
+			auto color2 = colors[std::min(i_mu + 1, max_color)];
+			Color c = linear_interpolation(color1, color2, mu - i_mu);
 
-            int n = IterationCounts[i][j];
-            Complex c = IterationValues[i][j];
-
-            // Map iterations to brightness
-            // int color = map(n, 0, n_max, 0, 255);
-
-            // long double color = smoothColor(n,c);
-
-            Color color = colorPalete[n];
-    
-            // if(n == n_max || n < 20)
-            if(n == n_max)
+            if(iter == n_max)
             {
-               std::cout << 0 << " " << 0 << " " << 0 << std::endl;
+                std::cout << 0 << " " << 0 << " " << 0 << std::endl;
             }
             else
             {
-                std::cout << color.R << " " << color.G << " " << color.B << "\n";
+                std::cout << c.R << " " << c.G << " " << c.B << std::endl;
             }
         }
 
     }
+
+
+    // return;
+
+    // for(int j = image_height-1; j >=0; --j)
+    // {    
+    //     for(int i = 0; i < image_width; ++i)
+    //     {
+
+    //         int n = IterationCounts[i][j];
+    //         Complex c = IterationValues[i][j];
+
+    //         // Map iterations to brightness
+    //         // int color = map(n, 0, n_max, 0, 255);
+
+    //         // long double color = smoothColor(n,c);
+
+    //         Color color = colorPalete[n];
+    
+    //         // if(n == n_max || n < 20)
+    //         if(n == n_max)
+    //         {
+    //            std::cout << 0 << " " << 0 << " " << 0 << std::endl;
+    //         }
+    //         else
+    //         {
+    //             std::cout << color.R << " " << color.G << " " << color.B << "\n";
+    //         }
+    //     }
+
+    // }
 }
 
 
@@ -131,17 +187,9 @@ cIterations iterateMandelbrot(int i, int j)
 }
 
 
-
-int main(int argc, char* argv[])
+std::vector<Color> generateColorPalete()
 {
-    std::vector<std::vector<int>> IterationCounts; // Number of iterations per pixel
-    std::vector<std::vector<Complex>> IterationValues; // Value of function after n iterations
-    std::vector<int> NumPixelsPerItteration(n_max, 0); // Position i stores number of pixels that have i iterations
-
     std::vector<Color> colorPalete;
-
-    // Color 1 #0048BA // R = 0x00, G = 0x48, B = 0xBA
-    // Color 2 #BA7300 // R = 0xBA, G = 0x73, B = 0x00
 
     Color color1;
     color1.R = 0xFF;
@@ -157,10 +205,6 @@ int main(int argc, char* argv[])
     black.R = 0x00;
     black.G = 0x00;
     black.B = 0x00;
-
-    // double rStep = -1.0 * (double) (color1.R - color2.R) / n_max;
-    // double gStep = -1.0 * (double) (color1.G - color2.G) / n_max;
-    // double bStep = -1.0 * (double) (color1.B - color2.B) / n_max;
 
     long double sumR = 0;
     long double sumG = 0;
@@ -186,11 +230,12 @@ int main(int argc, char* argv[])
         {
             Color tempColor;
 
-            // Calculate log step
+            // Calculate log step for current iteration
             double long rStep = log2(1 + (color1.R * log2(i)) / 10) / 8;
             double long gStep = log2(1 + (color1.G * log2(i)) / 10) / 8;
             double long bStep = log2(1 + (color1.B * log2(i)) / 10) / 8;
 
+            // 
             sumR += rStep;
             sumG += gStep;
             sumB += bStep;
@@ -199,15 +244,35 @@ int main(int argc, char* argv[])
             tempColor.G = sumG;
             tempColor.B = sumB;
 
-
             colorPalete.push_back(tempColor);
-
-            // std::cerr << tempColor.R << " " << tempColor.G << " " << tempColor.B << "\n";
         }
     }
 
+    return colorPalete;
+}
 
 
+int main(int argc, char* argv[])
+{
+    std::vector<std::vector<int>> IterationCounts; // Number of iterations per pixel
+    std::vector<std::vector<Complex>> IterationValues; // Value of function after n iterations
+    std::vector<int> NumPixelsPerItteration(n_max, 0); // Position i stores number of pixels that have i iterations
+
+
+    // std::vector<Color> colorPalete;
+    // colorPalete = generateColorPalete();
+
+    // Stolen color palette
+    std::vector<Color> colors{
+        {0,7,100},
+        {32,107,203},
+        {237,255,255},
+        {255,170,0},
+        {0,2,0},
+    };
+
+
+    // Preallocation
     IterationCounts.reserve(image_width);
     IterationValues.reserve(image_width);
 
@@ -233,7 +298,7 @@ int main(int argc, char* argv[])
 
             for(int k = 0; k < s_max; k++)
             {
-                long double r = (double)(rand()%100)/1000;
+                long double r = (double)(rand()%100)/100;
 
                 ii+=r;
                 jj+=r;
@@ -248,17 +313,12 @@ int main(int argc, char* argv[])
 
             sum_n = sum_n / s_max;
 
-
-            // int n = iterateMandelbrot(i,j);
-
             IterationCounts[i].push_back(sum_n);
             IterationValues[i].push_back(c);
-
-            
         }
     }
 
-    writePPM(IterationCounts, IterationValues, colorPalete);
+    writePPM(IterationCounts, IterationValues, colors);
 
     return 0;
 }
