@@ -5,8 +5,8 @@
 #include <math.h>
 
 // Global Declarations
-int image_width = 1000;
-int image_height = 1000; 
+int image_width = 5000;
+int image_height = 5000; 
 
 // long double output_start = -2.0f;
 // long double output_end = 2.0f;
@@ -21,7 +21,7 @@ long double output_end = 0.36f;
 
 int n_max = 512; // 4096
 
-int s_max = 1; // anti-aliasing
+int s_max = 8; // prefer to be a power of 2
 
 
 
@@ -78,7 +78,7 @@ long double smoothColor(int n, Complex c)
 }
 
 // Stolen code from https://github.com/sevity/mandelbrot
-inline Color linear_interpolation(const Color& v, const Color& u, double a)
+inline Color linearInterpolation(const Color& v, const Color& u, double a)
 {
 	auto const b = 1 - a;
 	return Color(b * v.R + a * u.R, b*v.G + a * u.G, b*v.B + a * u.B);
@@ -93,10 +93,8 @@ void writePPM(std::vector<std::vector<int>> IterationCounts, std::vector<std::ve
     {
         std::cerr << "\rScanlines remaining: " << j << " " <<  std::flush;
 
-
         for(int i = 0; i < image_width; ++i)
         {
-            
             int iter = IterationCounts[i][j];
             
             // Stolen Code from https://github.com/sevity/mandelbrot
@@ -108,7 +106,7 @@ void writePPM(std::vector<std::vector<int>> IterationCounts, std::vector<std::ve
 			auto i_mu = static_cast<size_t>(mu);
 			auto color1 = colors[i_mu];
 			auto color2 = colors[std::min(i_mu + 1, max_color)];
-			Color c = linear_interpolation(color1, color2, mu - i_mu);
+			Color c = linearInterpolation(color1, color2, mu - i_mu);
 
             if(iter == n_max)
             {
@@ -155,7 +153,7 @@ void writePPM(std::vector<std::vector<int>> IterationCounts, std::vector<std::ve
 }
 
 
-cIterations iterateMandelbrot(int i, int j)
+cIterations iterateMandelbrot(long double i, long double j)
 {
     long double complex_i = map(i, output_start, output_end, 0, image_width);
     long double complex_j = map(j, output_start, output_end, 0, image_height);
@@ -288,32 +286,44 @@ int main(int argc, char* argv[])
         for(int j = 0; j < image_height; j++)
         {
 
-            int sum_n = 0;
-            int ii = i;
-            int jj = j;
-
             cIterations citerations;
             Complex c;
             int n = 0;
 
-            for(int k = 0; k < s_max; k++)
-            {
-                long double r = (double)(rand()%100)/100;
+            int sum = 0;
 
-                ii+=r;
-                jj+=r;
+
+            for(double k = 0.0; k < 1.0; k+=1.0/s_max)
+            {
+                // std::cerr << k << std::endl;
+
+                double ii  = i+k;
+                double jj = j+k;
+
+                // std::cerr << ii << " " << jj << std::endl;
 
                 citerations = iterateMandelbrot(ii,jj);
 
                 n = citerations.n;
                 c = citerations.c;
-
-                sum_n = sum_n + citerations.n;
+                
+                sum+=n;
             }
 
-            sum_n = sum_n / s_max;
+            sum = sum / s_max;
 
-            IterationCounts[i].push_back(sum_n);
+            n = sum;
+
+            // return 0;
+
+
+
+            // citerations = iterateMandelbrot(i,j);
+
+            // n = citerations.n;
+            // c = citerations.c;
+
+            IterationCounts[i].push_back(n);
             IterationValues[i].push_back(c);
         }
     }
