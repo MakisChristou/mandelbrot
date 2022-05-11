@@ -1,27 +1,30 @@
 #include <iostream>
 #include <vector>
 #include <cstdlib>
-#include <bits/stdc++.h>
 #include <math.h>
+#include <SDL2/SDL.h>
 
 // Global Declarations
-int image_width = 5000;
-int image_height = 5000; 
+int image_width = 500;
+int image_height = 500; 
 
-// long double output_start = -2.0f;
-// long double output_end = 2.0f;
+long double output_start = -2.0f;
+long double output_end = 2.0f;
+
+
+long double factor = 1.0f;
 
 // long double output_start = 0.2f;
 // long double output_end = 0.5f;
 
-long double output_start = 0.35f;
-long double output_end = 0.36f;
+// long double output_start = 0.35f;
+// long double output_end = 0.36f;
 
 
 
-int n_max = 512; // 4096
+int n_max = 64; // 4096
 
-int s_max = 8; // prefer to be a power of 2
+int s_max = 4; // prefer to be a power of 2
 
 
 
@@ -84,40 +87,40 @@ inline Color linearInterpolation(const Color& v, const Color& u, double a)
 	return Color(b * v.R + a * u.R, b*v.G + a * u.G, b*v.B + a * u.B);
 }
 
+
+Color getColor(int iter, std::vector<Color> colorPallete)
+{
+    // Stolen Code from https://github.com/sevity/mandelbrot
+    static const auto max_color = colorPallete.size() - 1;
+    // if (iter == n_max)iter = 0;
+    double mu = 1.0*iter / n_max;
+    //scale mu to be in the range of colors
+    mu *= max_color;
+    auto i_mu = static_cast<size_t>(mu);
+    auto color1 = colorPallete[i_mu];
+    auto color2 = colorPallete[std::min(i_mu + 1, max_color)];
+    Color c = linearInterpolation(color1, color2, mu - i_mu);
+
+    if(iter == n_max)
+    {
+        c.R = c.G = c.B = 0;
+    }
+
+    return c;
+}
+
 // Prints PPM in std
-void writePPM(std::vector<std::vector<int>> IterationCounts, std::vector<std::vector<Complex>> IterationValues, std::vector<Color> colors)
+void writePPM(std::vector<std::vector<Color>> pixelColors)
 {
     std::cout << "P3\n" << image_width << ' ' << image_height << "\n255\n";
 
     for(int j = image_height-1; j >=0; --j)
     {
-        std::cerr << "\rScanlines remaining: " << j << " " <<  std::flush;
-
         for(int i = 0; i < image_width; ++i)
         {
-            int iter = IterationCounts[i][j];
-            
-            // Stolen Code from https://github.com/sevity/mandelbrot
-            static const auto max_color = colors.size() - 1;
-			// if (iter == n_max)iter = 0;
-			double mu = 1.0*iter / n_max;
-			//scale mu to be in the range of colors
-			mu *= max_color;
-			auto i_mu = static_cast<size_t>(mu);
-			auto color1 = colors[i_mu];
-			auto color2 = colors[std::min(i_mu + 1, max_color)];
-			Color c = linearInterpolation(color1, color2, mu - i_mu);
-
-            if(iter == n_max)
-            {
-                std::cout << 0 << " " << 0 << " " << 0 << "\n";
-            }
-            else
-            {
-                std::cout << c.R << " " << c.G << " " << c.B << "\n";
-            }
+            Color c = pixelColors[i][j];
+            std::cout << c.R << " " << c.G << " " << c.B << "\n";
         }
-
     }
 
 
@@ -252,16 +255,20 @@ std::vector<Color> generateColorPalete()
 
 int main(int argc, char* argv[])
 {
+    SDL_Init(SDL_INIT_EVERYTHING);
+    SDL_Window* window;
+    SDL_Renderer* renderer;
+    SDL_Event event;
+    SDL_CreateWindowAndRenderer(image_width, image_height, 0, &window, &renderer);
+    SDL_RenderSetLogicalSize(renderer, image_width, image_height);
+
     std::vector<std::vector<int>> IterationCounts; // Number of iterations per pixel
     std::vector<std::vector<Complex>> IterationValues; // Value of function after n iterations
     std::vector<int> NumPixelsPerItteration(n_max, 0); // Position i stores number of pixels that have i iterations
-
-
-    // std::vector<Color> colorPalete;
-    // colorPalete = generateColorPalete();
+    std::vector<std::vector<Color>> pixelColours;
 
     // Stolen color palette
-    std::vector<Color> colors{
+    std::vector<Color> colorPallete{
         {0,7,100},
         {32,107,203},
         {237,255,255},
@@ -270,65 +277,93 @@ int main(int argc, char* argv[])
     };
 
 
-    // Preallocation
     IterationCounts.reserve(image_width);
     IterationValues.reserve(image_width);
-
     srand(time(0));
 
-    for(int i = 0; i < image_width; i++)
+    while(1)
     {
-        std::cerr << "\rScanlines remaining: " << image_width - i << " " <<  std::flush;
+        SDL_RenderPresent(renderer);
 
-        IterationCounts.push_back(std::vector<int>());
-        IterationValues.push_back(std::vector<Complex>());
 
-        for(int j = 0; j < image_height; j++)
+        SDL_Event event;
+        while (SDL_PollEvent(&event))
         {
-
-            cIterations citerations;
-            Complex c;
-            int n = 0;
-
-            int sum = 0;
-
-
-            for(double k = 0.0; k < 1.0; k+=1.0/s_max)
-            {
-                // std::cerr << k << std::endl;
-
-                double ii  = i+k;
-                double jj = j+k;
-
-                // std::cerr << ii << " " << jj << std::endl;
-
-                citerations = iterateMandelbrot(ii,jj);
-
-                n = citerations.n;
-                c = citerations.c;
-                
-                sum+=n;
+            if (event.type == SDL_QUIT) {
+                SDL_Quit();
+                return 0;
             }
-
-            sum = sum / s_max;
-
-            n = sum;
-
-            // return 0;
-
-
-
-            // citerations = iterateMandelbrot(i,j);
-
-            // n = citerations.n;
-            // c = citerations.c;
-
-            IterationCounts[i].push_back(n);
-            IterationValues[i].push_back(c);
         }
+
+        
+
+
+        // Main Loop
+        for(int i = 0; i < image_width; i++)
+        {
+            std::cerr << "\rScanlines remaining: " << image_width - i << " " <<  std::flush;
+
+            IterationCounts.push_back(std::vector<int>());
+            IterationValues.push_back(std::vector<Complex>());
+            pixelColours.push_back(std::vector<Color>());
+
+            for(int j = 0; j < image_height; j++)
+            {
+
+                cIterations citerations;
+                Complex c;
+                int n = 0;
+                int sum = 0;
+
+
+                for(double k = 0.0; k < 1.0; k+=1.0/s_max)
+                {
+                    double ii  = i+k;
+                    double jj = j+k;
+
+                    citerations = iterateMandelbrot(ii,jj);
+
+                    n = citerations.n;
+                    c = citerations.c;
+                    
+                    sum+=n;
+                }
+
+                sum = sum / s_max;
+                n = sum;
+
+                Color color = getColor(n, colorPallete);
+
+                IterationCounts[i].push_back(n);
+                IterationValues[i].push_back(c);
+                pixelColours[i].push_back(color);
+
+
+                // SDL Draw
+                SDL_SetRenderDrawColor(renderer, color.R, color.G, color.B, 255);
+                SDL_RenderDrawPoint(renderer, i, j);
+
+                
+
+            }
+        }
+
+        // Zoom in code by https://www.youtube.com/watch?v=KnCNfBb2ODQ
+        output_start+=0.15*factor;
+        output_end-=0.1*factor;
+        factor *= 0.9349;
+        // n_max+=5;
+
     }
 
-    writePPM(IterationCounts, IterationValues, colors);
+    // return 0;
+
+
+
+
+
+
+    // writePPM(pixelColours);
 
     return 0;
 }

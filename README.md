@@ -1,9 +1,9 @@
 # Mandelbrot set renderer
 
 
-## Compilation
-
+## Compilation (Ubuntu 22.04)
 ```
+sudo apt-get install libsdl2-dev
 cd Mandelbrot
 make
 ```
@@ -11,7 +11,7 @@ make
 ## Running
 
 ```
-./mandelbrot > file.ppm
+./mandelbrot
 ```
 
 ## Converting output to png
