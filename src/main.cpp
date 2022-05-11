@@ -5,21 +5,21 @@
 #include <math.h>
 
 // Global Declarations
-int image_width = 5000;
-int image_height = 5000; 
+int image_width = 1000;
+int image_height = 1000; 
 
-long double output_start = -2.0f;
-long double output_end = 2.0f;
-
-// long double output_start = 0.2f;
-// long double output_end = 0.5f;
+// long double output_start = -2.0f;
+// long double output_end = 2.0f;
 
 // long double output_start = 0.2f;
 // long double output_end = 0.5f;
 
+long double output_start = 0.35f;
+long double output_end = 0.36f;
 
 
-int n_max = 128; // 4096
+
+int n_max = 512; // 4096
 
 int s_max = 1; // anti-aliasing
 
