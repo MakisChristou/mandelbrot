@@ -112,11 +112,11 @@ void writePPM(std::vector<std::vector<int>> IterationCounts, std::vector<std::ve
 
             if(iter == n_max)
             {
-                std::cout << 0 << " " << 0 << " " << 0 << std::endl;
+                std::cout << 0 << " " << 0 << " " << 0 << "\n";
             }
             else
             {
-                std::cout << c.R << " " << c.G << " " << c.B << std::endl;
+                std::cout << c.R << " " << c.G << " " << c.B << "\n";
             }
         }
 
