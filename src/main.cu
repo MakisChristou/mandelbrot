@@ -12,8 +12,8 @@ using namespace std::chrono;
 // #include <SDL2/SDL.h>
 
 // Global Declarations
-int image_width = 1920;
-int image_height = 1920; 
+int image_width = 5000;
+int image_height = 5000; 
 
 
 
@@ -342,8 +342,8 @@ int main(int argc, char* argv[])
     int N = image_width;
     int M = image_height; 
 
-    double output_start = -2.0f;
-    double output_end = 2.0f;
+    double output_start = 0.35f;
+    double output_end = 0.36f;
     double factor = 1.0f;
 
      int palleteSize = 5;
@@ -394,16 +394,16 @@ int main(int argc, char* argv[])
         cudaMalloc(&d_output_end, sizeof(double));
 
         // Fill host arrays data structures
-         for(int i = 0; i < image_width; i++)
-        {
-            for(int j = 0; j < image_height; j++)
-            {
-                B[i*image_height+j].R = 0;
-                B[i*image_height+j].G = 0;
-                B[i*image_height+j].B = 0;
-                // A[i*image_height+j] = 0;
-            }
-        }
+        //  for(int i = 0; i < image_width; i++)
+        // {
+        //     for(int j = 0; j < image_height; j++)
+        //     {
+        //         B[i*image_height+j].R = 0;
+        //         B[i*image_height+j].G = 0;
+        //         B[i*image_height+j].B = 0;
+        //         // A[i*image_height+j] = 0;
+        //     }
+        // }
 
         P[0] = gpuColor(0,7,100);
         P[1] = gpuColor(32,107,203);
@@ -437,6 +437,8 @@ int main(int argc, char* argv[])
 
         mandelbortKernel<<< blocks, threads >>>(d_B, d_P, palleteSize, N, N, d_output_start, d_output_end, n_max, s_max);
 
+        cudaThreadSynchronize();
+
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
 
@@ -453,11 +455,15 @@ int main(int argc, char* argv[])
         // free(A);
         free(B);
         free(P);
+        free(output_start_host);
+        free(output_end_host);
 
         // Free GPU memory
         // cudaFree(d_A);
         cudaFree(d_B);
         cudaFree(d_P);
+        cudaFree(d_output_start);
+        cudaFree(d_output_end);
 
         // printf("\n---------------------------\n");
         // printf("__SUCCESS__\n");
