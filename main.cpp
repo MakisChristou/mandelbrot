@@ -12,9 +12,6 @@ using namespace std::chrono;
 
 #include <SDL2/SDL.h>
 
-
-
-
 // Returns smooth colour based on iteration and C value when escape
 inline long double smoothColor(int n, Complex c)
 {
@@ -123,8 +120,8 @@ int main(int argc, char* argv[])
     int N = image_width;
     int M = image_height; 
 
-    double output_start = -2.0;
-    double output_end = 2.0f;
+    double output_start = -3.0;
+    double output_end = 2.6f;
 
     // long double output_start = 0.2f;
     // long double output_end = 0.5f;
@@ -248,7 +245,7 @@ int main(int argc, char* argv[])
         // Zoom in code by https://www.youtube.com/watch?v=KnCNfBb2ODQ
         output_start+=0.15*factor;
         output_end-=0.1*factor;
-        factor *= 0.9349;
+        factor *= 0.9549;
         n_max+=1;
     }
 
