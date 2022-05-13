@@ -1,9 +1,9 @@
-# Mandelbrot set renderer
+# cundelbrot: A CUDA based fractal renderer
 
 
 ## Compilation (Ubuntu 22.04)
 ```
-sudo apt-get install nvidia-cuda-toolkit
+sudo apt-get install nvidia-cuda-toolkit libsdl2-dev
 cd Mandelbrot
 make
 ```
@@ -11,7 +11,7 @@ make
 ## Running
 
 ```
-./cundelbrot > file.ppm
+./cundelbrot
 ```
 
 ## Converting output to png
@@ -33,14 +33,14 @@ convert file.ppm file.png
 
 ## Sample Images
 
-### Resolution: 5000x5000, n_max = 64, s_max = 8, range: -2.0, 2.0
+### Sample1, Resolution: 5000x5000, n_max = 64, s_max = 8, range: -2.0, 2.0
 ![Sample 1](images/file1.png)
 
-### Resolution: 5000x5000, n_max = 256, s_max = 8, range: 0.2, 0.5
+### Sample2, Resolution: 5000x5000, n_max = 256, s_max = 8, range: 0.2, 0.5
 ![Sample 2](images/file2.png)
 
-### Resolution: 5000x5000, n_max = 256, s_max = 8, range: 0.35, 0.45
+### Sample3, Resolution: 5000x5000, n_max = 256, s_max = 8, range: 0.35, 0.45
 ![Sample 3](images/file3.png)
 
-### Resolution: 5000x5000, n_max = 512, s_max = 8, range: 0.35, 0.36
+### Sample4, Resolution: 5000x5000, n_max = 512, s_max = 8, range: 0.35, 0.36
 ![Sample 3](images/file4.png)
