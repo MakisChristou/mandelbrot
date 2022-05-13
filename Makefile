@@ -1,6 +1,6 @@
 #------------------------------------------------------------------------------
 SOURCE=./src/main.cu
-MYPROGRAM=mandelbrot
+MYPROGRAM=cudelbrot
 LIBS= 
 CC=nvcc
 
