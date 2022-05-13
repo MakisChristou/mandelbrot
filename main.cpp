@@ -124,19 +124,19 @@ inline std::vector<Color> generateColorPalete()
 
 int main(int argc, char* argv[])
 {
-    // SDL_Init(SDL_INIT_EVERYTHING);
-    // SDL_Window* window;
-    // SDL_Renderer* renderer;
-    // SDL_Event event;
-    // SDL_CreateWindowAndRenderer(image_width, image_height, 0, &window, &renderer);
-    // SDL_RenderSetLogicalSize(renderer, image_width, image_height);
+    SDL_Init(SDL_INIT_EVERYTHING);
+    SDL_Window* window;
+    SDL_Renderer* renderer;
+    SDL_Event event;
+    SDL_CreateWindowAndRenderer(image_width, image_height, 0, &window, &renderer);
+    SDL_RenderSetLogicalSize(renderer, image_width, image_height);
 
 
     int N = image_width;
     int M = image_height; 
 
-    double output_start = 0.35f;
-    double output_end = 0.36f;
+    double output_start = -2.0;
+    double output_end = 2.0f;
     double factor = 1.0f;
 
      int palleteSize = 5;
@@ -146,18 +146,16 @@ int main(int argc, char* argv[])
 
     while(1)
     {
-        // SDL_RenderPresent(renderer);
-        // SDL_Event event;
-        // while (SDL_PollEvent(&event))
-        // {
-        //     if (event.type == SDL_QUIT) {
-        //         SDL_Quit();
-        //         return 0;
-        //     }
-        // }
+        SDL_RenderPresent(renderer);
+        SDL_Event event;
+        while (SDL_PollEvent(&event))
+        {
+            if (event.type == SDL_QUIT) {
+                SDL_Quit();
+                return 0;
+            }
+        }
     
-
-
 
         // Number of bytes to allocate for N doubles
         // size_t iterationBytes = N*M*sizeof(int);
@@ -251,9 +249,27 @@ int main(int argc, char* argv[])
         // Copy data from device array d_C to host array C
         // cudaMemcpy(B, d_B, pixelBytes, cudaMemcpyDeviceToHost);
 
-        gpuCopyFromDevice(N, M, palleteSize, d_B, d_P,  B,  P);
+        gpuCopyFromDevice(N, M, palleteSize, d_B, d_P,  B, P);
 
-        writePPM(B);
+        // writePPM(B);
+
+
+        // Write to scren
+
+        for(int i = 0; i < image_width; i++)
+        {
+            for (int j = 0; j < image_height; j++)
+            {
+
+                Color c = B[i*image_height + j];
+
+                 // SDL Draw
+                SDL_SetRenderDrawColor(renderer, c.R, c.G, c.B, 255);
+                SDL_RenderDrawPoint(renderer, i, j);
+            }
+        }
+       
+
 
         // Free CPU memory
         // free(A);
@@ -281,9 +297,9 @@ int main(int argc, char* argv[])
         // printf("---------------------------\n\n");
 
 
-        printf("end! \n");
+        // printf("end! \n");
 
-        return 0;
+        // return 0;
 
 
 
@@ -330,15 +346,15 @@ int main(int argc, char* argv[])
         //     }
         // }
 
+
+
         // Zoom in code by https://www.youtube.com/watch?v=KnCNfBb2ODQ
-        // output_start+=0.15*factor;
-        // output_end-=0.1*factor;
-        // factor *= 0.9349;
-        // n_max+=5;
+        output_start+=0.15*factor;
+        output_end-=0.1*factor;
+        factor *= 0.9349;
+        n_max+=5;
 
-        
 
-        return 0;
 
     }
 
