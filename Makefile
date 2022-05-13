@@ -1,16 +1,16 @@
-#------------------------------------------------------------------------------
-SOURCE=./src/main.cu
-MYPROGRAM=cudelbrot
-LIBS= 
-CC=nvcc
+CXX=g++
+NVCC=nvcc
 
+all: main
 
-#------------------------------------------------------------------------------
+main: main.o gpu.o
+	${CXX} -o main main.o gpu.o -lSDL2 -lcudart
 
-all: $(MYPROGRAM)
+main.o: main.cpp
+	${CXX} -c -o main.o main.cpp
 
-$(MYPROGRAM): $(SOURCE)
-	$(CC) -O3 $(SOURCE) -o $(MYPROGRAM) $(LIBS)
+gpu.o: gpu.cu gpu.h
+	${NVCC} -c -o gpu.o gpu.cu
 
-clean:
-	rm -f $(MYPROGRAM) *.ppm
+clean: 
+	rm -f *.o main *.ppm
