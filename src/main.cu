@@ -15,8 +15,6 @@ using namespace std::chrono;
 int image_width = 5000;
 int image_height = 5000; 
 
-
-
 // long double output_start = 0.2f;
 // long double output_end = 0.5f;
 
@@ -26,51 +24,13 @@ int image_height = 5000;
 int n_max = 64; // 4096
 int s_max = 8; // prefer to be a power of 2
 
-typedef struct gpuColor
+
+typedef struct 
 {
     int R;
     int G;
     int B;
-
-    __device__ __host__ gpuColor()
-    {
-
-    }
-
-    __device__ __host__ gpuColor(int r, int g, int b)
-    {
-        R = r;
-        G = g;
-        B = b;
-    }
-    __device__ __host__ gpuColor(double r, double g, double b)
-    {
-        R = (int)r;
-        G = (int)g;
-        B = (int)b;
-    }
-};
-
-typedef struct Color
-{
-    int R;
-    int G;
-    int B;
-
-    Color()
-    {
-        R = 0;
-        G = 0;
-        B = 0;
-    }
-
-    Color(int r, int g, int b)
-    {
-        R = r;
-        G = g;
-        B = b;
-    }
-};
+}Color;
 
 typedef struct Complex
 {
@@ -91,10 +51,17 @@ __device__ inline long double map(long double input, long double output_start, l
 }
 
 // Stolen code from https://github.com/sevity/mandelbrot
-__device__ inline gpuColor linearInterpolation(const gpuColor& v, const gpuColor& u, double a)
+__device__ inline Color linearInterpolation(const Color& v, const Color& u, double a)
 {
 	auto const b = 1 - a;
-	return gpuColor(b * v.R + a * u.R, b*v.G + a * u.G, b*v.B + a * u.B);
+
+    Color color;
+
+    color.R = b * v.R + a * u.R;
+    color.G = b*v.G + a * u.G;
+    color.B = b*v.B + a * u.B;
+
+	return color;
 }
 
 __device__ inline cIterations iterateMandelbrot(long double i, long double j, long double output_start, long double output_end, int image_width, int image_height, int n_max)
@@ -139,7 +106,7 @@ __device__ inline cIterations iterateMandelbrot(long double i, long double j, lo
     return citerations;
 }
 
-__device__ inline gpuColor getColor(int iter, gpuColor* colorPallete, int palleteSize, int n_max)
+__device__ inline Color getColor(int iter, Color* colorPallete, int palleteSize, int n_max)
 {
     // Stolen Code from https://github.com/sevity/mandelbrot
     
@@ -154,8 +121,8 @@ __device__ inline gpuColor getColor(int iter, gpuColor* colorPallete, int pallet
     mu *= max_color;
     size_t i_mu = static_cast<size_t>(mu);
 
-    gpuColor color1 = colorPallete[i_mu];
-    gpuColor color2;
+    Color color1 = colorPallete[i_mu];
+    Color color2;
 
     
 
@@ -168,7 +135,7 @@ __device__ inline gpuColor getColor(int iter, gpuColor* colorPallete, int pallet
         color2 = colorPallete[max_color];
     }
 
-    gpuColor c = linearInterpolation(color1, color2, mu - i_mu);
+    Color c = linearInterpolation(color1, color2, mu - i_mu);
 
     if(iter == n_max)
     {
@@ -179,15 +146,10 @@ __device__ inline gpuColor getColor(int iter, gpuColor* colorPallete, int pallet
 }
 
 // Kernel
-__global__ void mandelbortKernel(gpuColor *pixelColours, gpuColor* colorPallete, int palleteSize, int image_height, int image_width, double* output_start, double* output_end, int n_max, int s_max)
+__global__ void mandelbortKernel(Color *pixelColours, Color* colorPallete, int palleteSize, int image_height, int image_width, double* output_start, double* output_end, int n_max, int s_max)
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x; 
     int j = blockIdx.y * blockDim.y + threadIdx.y;
-
-    // For some reason
-    // double output_start = *output_startt;
-    // double output_end = *output_endd;
-    // double factor = *factorr;
 
 
     if (i < image_width && j < image_height)
@@ -203,6 +165,7 @@ __global__ void mandelbortKernel(gpuColor *pixelColours, gpuColor* colorPallete,
             double ii  = i+k;
             double jj = j+k;
 
+            // Pass value of bounds
             citerations = iterateMandelbrot(ii,jj, *output_start, *output_end, image_width, image_height, n_max);
 
             n = citerations.n;
@@ -215,7 +178,7 @@ __global__ void mandelbortKernel(gpuColor *pixelColours, gpuColor* colorPallete,
         n = sum;
         
         // bug here, cannot access colorPallete (and probably not other arrays either)
-        gpuColor color = getColor(n, colorPallete, palleteSize, n_max);
+        Color color = getColor(n, colorPallete, palleteSize, n_max);
 
         // printf("%d%d%d\n",color.R,color.G,color.B);
 
@@ -247,7 +210,7 @@ inline long double smoothColor(int n, Complex c)
 }
 
 // Prints PPM in std
-void writePPM(gpuColor* pixelColors)
+void writePPM(Color* pixelColors)
 {
     printf("P3\n");
     printf("%d %d",image_width,image_height);
@@ -257,7 +220,7 @@ void writePPM(gpuColor* pixelColors)
     {
         for(int i = 0; i < image_width; ++i)
         {
-            gpuColor c = pixelColors[i*image_height + j];
+            Color c = pixelColors[i*image_height + j];
             printf("%d %d %d\n", c.R, c.G, c.B);
         }
     }
@@ -368,13 +331,13 @@ int main(int argc, char* argv[])
 
         // Number of bytes to allocate for N doubles
         // size_t iterationBytes = N*M*sizeof(int);
-        size_t pixelBytes = N*M*sizeof(gpuColor);
-        size_t palleteBytes = palleteSize*sizeof(gpuColor);
+        size_t pixelBytes = N*M*sizeof(Color);
+        size_t palleteBytes = palleteSize*sizeof(Color);
 
         // Allocate memory for arrays A, B, and C on host
         // int *A = (int*)malloc(iterationBytes); // iterationCounts
-        gpuColor *B = (gpuColor*)malloc(pixelBytes); // pixelColours
-        gpuColor *P = (gpuColor*)malloc(palleteBytes); // colorPalete
+        Color *B = (Color*)malloc(pixelBytes); // pixelColours
+        Color *P = (Color*)malloc(palleteBytes); // colorPalete
         double* output_start_host = (double*)malloc(sizeof(double));
         double* output_end_host = (double*)malloc(sizeof(double));
         double* factor_host = (double*)malloc(sizeof(double));
@@ -382,8 +345,8 @@ int main(int argc, char* argv[])
 
         // Allocate memory for arrays d_A, d_B, and d_C on device
         int *d_A;
-        gpuColor *d_B;
-        gpuColor *d_P;
+        Color *d_B;
+        Color *d_P;
         double* d_output_start;
         double* d_output_end;
 
@@ -393,23 +356,23 @@ int main(int argc, char* argv[])
         cudaMalloc(&d_output_start, sizeof(double));
         cudaMalloc(&d_output_end, sizeof(double));
 
-        // Fill host arrays data structures
-        //  for(int i = 0; i < image_width; i++)
-        // {
-        //     for(int j = 0; j < image_height; j++)
-        //     {
-        //         B[i*image_height+j].R = 0;
-        //         B[i*image_height+j].G = 0;
-        //         B[i*image_height+j].B = 0;
-        //         // A[i*image_height+j] = 0;
-        //     }
-        // }
+        // Filldata structures
+        
+        Color color;
+        color.R = 0;color.G = 7; color.B = 100;
+        P[0] = color;
 
-        P[0] = gpuColor(0,7,100);
-        P[1] = gpuColor(32,107,203);
-        P[2] = gpuColor(237,255,255);
-        P[3] = gpuColor(255,170,0);
-        P[4] = gpuColor(0,2,0);
+        color.R = 32;color.G = 107; color.B = 204;
+        P[1] = color;
+
+        color.R = 237;color.G = 255; color.B = 255;
+        P[2] = color;
+
+        color.R = 255;color.G = 170; color.B = 0;
+        P[3] = color;
+
+        color.R = 0;color.G = 2; color.B = 0;
+        P[4] = color;
 
         // Fill host arrays data structures
         output_start_host[0] = output_start;
