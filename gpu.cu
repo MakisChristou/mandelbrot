@@ -211,3 +211,11 @@ void gpuRender(Color* d_B, Color* d_P, int palleteSize, int N, int M, double* d_
 
     cudaThreadSynchronize();
 }
+
+void gpuUpdateBounds(int N, int M, int palleteSize, double* d_output_start, double* d_output_end, double* output_start_host, double* output_end_host)
+{
+    size_t pixelBytes = N*M*sizeof(Color);
+    size_t palleteBytes = palleteSize*sizeof(Color);
+    cudaMemcpy(d_output_start, output_start_host, sizeof(double), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_output_end, output_end_host, sizeof(double), cudaMemcpyHostToDevice);
+}
