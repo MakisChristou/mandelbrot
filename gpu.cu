@@ -1,7 +1,5 @@
 #include "gpu.h"
-
 #include <stdio.h>
-
 
 // Convert pixel coords to complex coords
 __device__ inline long double map(long double input, long double output_start, long double output_end, long double input_start, long double input_end)
@@ -23,15 +21,15 @@ __device__ inline Color linearInterpolation(const Color& v, const Color& u, doub
 	return color;
 }
 
-__device__ inline cIterations iterateMandelbrot(long double i, long double j, long double output_start, long double output_end, int image_width, int image_height, int n_max)
+__device__ inline cIterations iterateMandelbrot(long double i, long double j, long double output_start_x, long double output_end_x, long double output_start_y, long double output_end_y, int image_width, int image_height, int n_max)
 {
 
     // printf("i: %lf\n", i);
     // printf("j: %lf\n", j);
     
 
-    long double complex_i = map(i, output_start, output_end, 0, image_width);
-    long double complex_j = map(j, output_start, output_end, 0, image_height);
+    long double complex_i = map(i, output_start_x, output_end_x, 0, image_width);
+    long double complex_j = map(j, output_start_y, output_end_y, 0, image_height);
 
     
 
@@ -105,7 +103,7 @@ __device__ inline Color getColor(int iter, Color* colorPallete, int palleteSize,
 }
 
 // Kernel
-__global__ void mandelbortKernel(Color *pixelColours, Color* colorPallete, int palleteSize, int image_height, int image_width, double* output_start, double* output_end, int n_max, int s_max)
+__global__ void mandelbortKernel(Color *pixelColours, Color* colorPallete, int palleteSize, int image_height, int image_width, double* output_start_x, double* output_end_x, double* output_start_y, double* output_end_y, int n_max, int s_max)
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x; 
     int j = blockIdx.y * blockDim.y + threadIdx.y;
@@ -125,7 +123,7 @@ __global__ void mandelbortKernel(Color *pixelColours, Color* colorPallete, int p
             double jj = j+k;
 
             // Pass value of bounds
-            citerations = iterateMandelbrot(ii,jj, *output_start, *output_end, image_width, image_height, n_max);
+            citerations = iterateMandelbrot(ii,jj, *output_start_x, *output_end_x, *output_start_y, *output_end_y, image_width, image_height, n_max);
 
             n = citerations.n;
             c = citerations.c;
@@ -155,7 +153,6 @@ __global__ void mandelbortKernel(Color *pixelColours, Color* colorPallete, int p
     } 
 }
 
-
 Color* gpuAllocColor(int N, int M, int bytes)
 {
     Color *d_B;
@@ -170,23 +167,29 @@ double* gpuAllocDouble(int N, int M, int bytes)
     return d_output_start;
 }
 
-void gpuFree(Color* d_B, Color* d_P, double* d_output_start, double* d_output_end)
+void gpuFree(Color* d_B, Color* d_P, double* d_output_start_x, double* d_output_end_x, double* d_output_start_y, double* d_output_end_y)
 {
         cudaFree(d_B);
         cudaFree(d_P);
-        cudaFree(d_output_start);
-        cudaFree(d_output_end);
+        cudaFree(d_output_start_x);
+        cudaFree(d_output_end_x);
+        cudaFree(d_output_start_y);
+        cudaFree(d_output_end_y);
 }
 
-void gpuCopyToDevice(int N, int M, int palleteSize, Color* d_B, Color* d_P, Color* B, Color* P, double* d_output_start, double* d_output_end, double* output_start_host, double* output_end_host)
+void gpuCopyToDevice(int N, int M, int palleteSize, Color* d_B, Color* d_P, Color* B, Color* P,
+                    double* d_output_start_x, double* d_output_end_x, double* output_start_host_x, double* output_end_host_x,
+                    double* d_output_start_y, double* d_output_end_y, double* output_start_host_y, double* output_end_host_y)
 {
     size_t pixelBytes = N*M*sizeof(Color);
     size_t palleteBytes = palleteSize*sizeof(Color);
 
     cudaMemcpy(d_B, B, pixelBytes, cudaMemcpyHostToDevice);
     cudaMemcpy(d_P, P, palleteBytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_output_start, output_start_host, sizeof(double), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_output_end, output_end_host, sizeof(double), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_output_start_x, output_start_host_x, sizeof(double), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_output_end_x, output_end_host_x, sizeof(double), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_output_start_y, output_start_host_y, sizeof(double), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_output_end_y, output_end_host_y, sizeof(double), cudaMemcpyHostToDevice);
 
 }
 
@@ -199,7 +202,7 @@ void gpuCopyFromDevice(int N, int M, int palleteSize, Color* d_B, Color* d_P, Co
     cudaMemcpy(B, d_B, pixelBytes, cudaMemcpyDeviceToHost);
 }
 
-void gpuRender(Color* d_B, Color* d_P, int palleteSize, int N, int M, double* d_output_start, double* d_output_end, int n_max, int s_max)
+void gpuRender(Color* d_B, Color* d_P, int palleteSize, int N, int M, double* d_output_start_x, double* d_output_end_x, double* d_output_start_y, double* d_output_end_y, int n_max, int s_max)
 {
     int thr_per_blk = 16;
     int blk_in_grid = (N + thr_per_blk -1 )/ thr_per_blk ;
@@ -207,15 +210,18 @@ void gpuRender(Color* d_B, Color* d_P, int palleteSize, int N, int M, double* d_
     dim3 threads(thr_per_blk, thr_per_blk);
     dim3 blocks(blk_in_grid, blk_in_grid);
 
-    mandelbortKernel<<< blocks, threads >>>(d_B, d_P, palleteSize, N, M, d_output_start, d_output_end, n_max, s_max);
+    mandelbortKernel<<< blocks, threads >>>(d_B, d_P, palleteSize, N, M, d_output_start_x, d_output_end_x, d_output_start_y, d_output_end_y, n_max, s_max);
 
     cudaThreadSynchronize();
 }
 
-void gpuUpdateBounds(int N, int M, int palleteSize, double* d_output_start, double* d_output_end, double* output_start_host, double* output_end_host)
+void gpuUpdateBounds(int N, int M, int palleteSize, double* d_output_start_x, double* d_output_end_x, double* output_start_host_x, double* output_end_host_x,
+                    double* d_output_start_y, double* d_output_end_y, double* output_start_host_y, double* output_end_host_y)
 {
     size_t pixelBytes = N*M*sizeof(Color);
     size_t palleteBytes = palleteSize*sizeof(Color);
-    cudaMemcpy(d_output_start, output_start_host, sizeof(double), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_output_end, output_end_host, sizeof(double), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_output_start_x, output_start_host_x, sizeof(double), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_output_end_x, output_end_host_x, sizeof(double), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_output_start_y, output_start_host_y, sizeof(double), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_output_end_y, output_end_host_y, sizeof(double), cudaMemcpyHostToDevice);
 }

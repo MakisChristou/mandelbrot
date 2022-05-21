@@ -13,6 +13,12 @@ using namespace std::chrono;
 
 #include <SDL2/SDL.h>
 
+// Convert pixel coords to complex coords
+inline long double map(long double input, long double output_start, long double output_end, long double input_start, long double input_end)
+{
+    return (output_start + ((output_end - output_start) / (input_end - input_start)) * (input - input_start));
+}
+
 // Returns smooth colour based on iteration and C value when escape
 inline long double smoothColor(int n, Complex c)
 {
@@ -42,7 +48,7 @@ void writePPM(Color* pixelColors, int image_width, int image_height)
     }
 }
 
-//Timer Class for performance evaluation
+// Timer Class for performance evaluation
 class Timer{
 	public:
 	//Start timer
@@ -67,8 +73,8 @@ class Timer{
 int main(int argc, char* argv[])
 {
 
-    int image_width = 800;
-    int image_height = 800; 
+    int image_width = 1080;
+    int image_height = 1080; 
 
     int n_max = 64; // 4096
     int s_max = 8; // prefer to be a power of 2
@@ -77,18 +83,18 @@ int main(int argc, char* argv[])
     int N = image_width;
     int M = image_height; 
 
-    double output_start = -3.0;
-    double output_end = 2.66f;
-
-    // long double output_start = 0.2f;
-    // long double output_end = 0.5f;
-
-    // double output_start = 0.35f;
-    // double output_end = 0.36f;
+    long double output_start_x = -3.0f;
+    long double output_end_x = 2.66f;
+    double output_start_y = -3.0f;
+    double output_end_y = 2.66f;
 
 
     double factor = 1.0f;
     int palleteSize = 5;
+
+    // Used for zooming
+    long double scaleX = 1.00f;
+    long double scaleY = 1.00f;
 
     int count = 0; // frame counter
 
@@ -110,21 +116,33 @@ int main(int argc, char* argv[])
     // Allocate memory for arrays B, P on host
     Color *B = (Color*)malloc(pixelBytes); // pixelColours
     Color *P = (Color*)malloc(palleteBytes); // colorPalete
-    double* output_start_host = (double*)malloc(sizeof(double));
-    double* output_end_host = (double*)malloc(sizeof(double));
 
+    // New Coordinates
+    double* output_start_host_x = (double*)malloc(sizeof(double));
+    double* output_end_host_x = (double*)malloc(sizeof(double));
+    double* output_start_host_y = (double*)malloc(sizeof(double));
+    double* output_end_host_y = (double*)malloc(sizeof(double));
 
     // to allocate memory for arrays d_A, d_B, and d_C on device
     Color* d_B;
     Color* d_P;
-    double* d_output_start;
-    double* d_output_end;
+
+    // New Coordinates
+    double* d_output_start_x;
+    double* d_output_end_x;
+    double* d_output_start_y;
+    double* d_output_end_y;
 
     // Actually allocate GPU memory
     d_B = gpuAllocColor(N, M, pixelBytes);
     d_P = gpuAllocColor(N, M, palleteBytes);
-    d_output_start = gpuAllocDouble(N, M, sizeof(double));
-    d_output_end = gpuAllocDouble(N, M, sizeof(double));
+
+
+    d_output_start_x = gpuAllocDouble(N, M, sizeof(double));
+    d_output_end_x = gpuAllocDouble(N, M, sizeof(double));
+    d_output_start_y = gpuAllocDouble(N, M, sizeof(double));
+    d_output_end_y = gpuAllocDouble(N, M, sizeof(double));
+
 
     // Fill host data structures
     Color color;
@@ -144,7 +162,9 @@ int main(int argc, char* argv[])
     P[4] = color;
 
     // Copy host data to the device
-    gpuCopyToDevice(N,M,palleteSize,d_B,d_P,B,P,d_output_start,d_output_end,output_start_host,output_end_host);
+    gpuCopyToDevice(N, M, palleteSize, d_B, d_P, B, P, 
+    d_output_start_x, d_output_end_x, output_start_host_x, output_end_host_x,
+    d_output_start_y, d_output_end_y, output_start_host_y, output_end_host_y);
 
 
     // Main render loop
@@ -157,23 +177,100 @@ int main(int argc, char* argv[])
         SDL_Event event;
         while (SDL_PollEvent(&event))
         {
+            // User clicks the exit button
             if (event.type == SDL_QUIT) {
                 SDL_Quit();
                 return 0;
             }
+            // Key press
+            else if(event.type == SDL_KEYDOWN)
+            {   
+                long double distance_x = output_end_x - output_start_x;
+                long double distance_y = output_end_y - output_start_y;
+
+
+                // Arrow Keys for panning
+                if(event.key.keysym.sym == SDLK_RIGHT)
+                {   
+                    output_start_x+=distance_x/(1*100);
+                    output_end_x+=distance_x/(1*100);
+                }
+                else if(event.key.keysym.sym == SDLK_LEFT)
+                {
+                    output_start_x-=distance_x/(1*100);
+                    output_end_x-=distance_x/(1*100);
+                }
+                else if(event.key.keysym.sym == SDLK_DOWN)
+                {
+                    output_start_y+=distance_y/(1*100);
+                    output_end_y+=distance_y/(1*100);
+                }
+                else if(event.key.keysym.sym == SDLK_UP)
+                {
+                    output_start_y-=distance_y/(1*100);
+                    output_end_y-=distance_y/(1*100);
+                }
+
+
+                if(event.key.keysym.sym == SDLK_w)
+                {
+                    n_max++;
+                }
+                else if(event.key.keysym.sym == SDLK_s)
+                {   
+                    if(n_max > 1)
+                        n_max--;
+                }
+
+            }
+
+            // Scroll Wheel
+            else if(event.type == SDL_MOUSEWHEEL)
+            {
+                // Get mouse position
+                int mouse_x;
+                int mouse_y;
+                SDL_GetMouseState(&mouse_x, &mouse_y);
+
+                // Convert mouse position to complex plane
+                long double mouse_complex_i = map(mouse_x, output_start_x, output_end_x, 0, image_width);
+                long double mouse_complex_j = map(mouse_y, output_start_y, output_end_y, 0, image_height);
+
+                long double distance_x = output_end_x - output_start_x;
+                long double distance_y = output_end_y - output_start_y;
+                
+                if(event.wheel.y > 0) // scroll up
+                {
+                    output_start_x+=distance_x/(1*100);
+                    output_end_x-=distance_x/(1*100);
+                    output_start_y+=distance_y/(1*100);
+                    output_end_y-=distance_y/(1*100);
+                }
+                else if(event.wheel.y < 0) // scroll down
+                {
+                    output_start_x-=distance_x/(1*100);
+                    output_end_x+=distance_x/(1*100);
+                    output_start_y-=distance_y/(1*100);
+                    output_end_y+=distance_y/(1*100);
+                }
+
+                
+            }
         }
 
 
-        // Fill host arrays data structures
-        output_start_host[0] = output_start;
-        output_end_host[0] = output_end;
+        // Update render coordinates
+        output_start_host_x[0] = output_start_x;
+        output_end_host_x[0] = output_end_x;
+        output_start_host_y[0] = output_start_y;
+        output_end_host_y[0] = output_end_y;
 
 
-        gpuUpdateBounds(N,M, palleteSize,d_output_start, d_output_end,output_start_host,output_end_host);
+        gpuUpdateBounds(N,M, palleteSize, d_output_start_x, d_output_end_x, output_start_host_x, output_end_host_x, d_output_start_y, d_output_end_y, output_start_host_y, output_end_host_y);
 
         
         auto start = high_resolution_clock::now();
-        gpuRender( d_B, d_P,palleteSize,  N,  M,  d_output_start, d_output_end, n_max, s_max);
+        gpuRender( d_B, d_P,palleteSize,  N,  M, d_output_start_x, d_output_end_x, d_output_start_y, d_output_end_y, n_max, s_max);
         auto stop = high_resolution_clock::now();
         auto gpuRenderDuration = duration_cast<microseconds>(stop - start);
 
@@ -216,10 +313,11 @@ int main(int argc, char* argv[])
        
 
         // Zoom in code by https://www.youtube.com/watch?v=KnCNfBb2ODQ
-        
-        output_start+=0.15*factor;
-        output_end-=0.1*factor;
-        factor *= 0.9550;
+
+        // Automatic Zoom 
+        // output_start+=0.15*factor;
+        // output_end-=0.1*factor;
+        // factor *= 0.9550;
 
 
         // std::chrono::duration<float> duration = timer.duration;
@@ -228,16 +326,16 @@ int main(int argc, char* argv[])
 		float iterationTime = (float) std::chrono::duration_cast<std::chrono::microseconds>(timer.duration).count()/1000;
         float fps = (float)1000.0/iterationTime;
         int x = (int)(1000/iterationTime);
-
-        // Update every 1 second
+        // Avoid division by 0
+        if(x == 0)
+			x = 1;	
+			
+        // Update every 1 second    
         if((count == 1) || (count % x) == 0)
-            std::cerr <<"\r" << output_start << " " << output_end << " " << factor  << " " << n_max <<" fps: " << fps << std::flush;
+            std::cerr << "\r" << " Iterations: " << n_max <<" fps: " << fps << std::flush;
 
 
-        n_max+=1;
-
-
-
+        
 
         count++;
 
@@ -246,11 +344,14 @@ int main(int argc, char* argv[])
     // Free CPU memory
     free(B);
     free(P);
-    free(output_start_host);
-    free(output_end_host); 
+    free(output_start_host_x);
+    free(output_end_host_x);
+    free(output_start_host_y);
+    free(output_end_host_y);
+
 
     // Free GPU memory
-    gpuFree(d_B, d_P, d_output_start, d_output_end);
+    gpuFree(d_B, d_P, d_output_start_x, d_output_end_x, d_output_start_y, d_output_end_y);
 
     // Try and look pretty
     std::cerr << std::endl;
