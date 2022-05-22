@@ -12,6 +12,7 @@
 using namespace std::chrono;
 
 #include <SDL2/SDL.h>
+#include <GLFW/glfw3.h>
 
 // Convert pixel coords to complex coords
 inline long double map(long double input, long double output_start, long double output_end, long double input_start, long double input_end)
@@ -72,9 +73,8 @@ class Timer{
 
 int main(int argc, char* argv[])
 {
-
-    int image_width = 1080;
-    int image_height = 1080; 
+    int image_width = 2080;
+    int image_height = 2080; 
 
     int n_max = 64; // 4096
     int s_max = 8; // prefer to be a power of 2
@@ -165,6 +165,10 @@ int main(int argc, char* argv[])
     gpuCopyToDevice(N, M, palleteSize, d_B, d_P, B, P, 
     d_output_start_x, d_output_end_x, output_start_host_x, output_end_host_x,
     d_output_start_y, d_output_end_y, output_start_host_y, output_end_host_y);
+
+    // SDL2 Texture for faster rendering
+    SDL_Texture* theTexture = SDL_CreateTexture( renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, image_width, image_height );
+    uint32_t *textureBuffer = new uint32_t[ image_width * image_height ];
 
 
     // Main render loop
@@ -265,7 +269,7 @@ int main(int argc, char* argv[])
         output_start_host_y[0] = output_start_y;
         output_end_host_y[0] = output_end_y;
 
-
+        // Copy render coordinates to GPU memory
         gpuUpdateBounds(N,M, palleteSize, d_output_start_x, d_output_end_x, output_start_host_x, output_end_host_x, d_output_start_y, d_output_end_y, output_start_host_y, output_end_host_y);
 
         
@@ -280,36 +284,43 @@ int main(int argc, char* argv[])
         stop = high_resolution_clock::now();
         auto gpuCopyFromDeviceDuration = duration_cast<microseconds>(stop - start);
         
-        // For file output
-        // writePPM(B, N, M);
 
-        // Write to scren
+        
+
+
         start = high_resolution_clock::now();
+        
+        // Write to screen
         for(int i = 0; i < image_width; i++)
         {
             for (int j = 0; j < image_height; j++)
             {
                 Color c = B[i*image_height + j];
-
-                 // SDL Draw
-                SDL_SetRenderDrawColor(renderer, c.R, c.G, c.B, 255);
-                SDL_RenderDrawPoint(renderer, i, j);
+                uint32_t ir = c.R;
+                uint32_t ig = c.G;
+                uint32_t ib = c.B;
+                textureBuffer[j * image_height + i] = 0xFF000000 | (ir<<16) | (ig<<8) | ib;
             }
         }
+        
+        SDL_Rect texture_rect; //create a rect
+        texture_rect.x = 0;  //controls the rect's x coordinate 
+        texture_rect.y = 0; // controls the rect's y coordinte
+        texture_rect.w = image_width; // controls the width of the rect
+        texture_rect.h = image_height; // controls the height of the rect
+
+        SDL_UpdateTexture( theTexture , NULL, textureBuffer, image_width * sizeof (uint32_t));
+        SDL_RenderCopy(renderer, theTexture, NULL, &texture_rect); 
+        stop = high_resolution_clock::now();
+        auto SDLRenderDuration = duration_cast<microseconds>(stop - start);
 
         // Segfault here ?
-
         // SDL_Surface* sshot = SDL_GetWindowSurface(window);
         // printf("Test1");
         // SDL_RenderReadPixels(renderer, NULL, SDL_PIXELFORMAT_BGRA8888, sshot->pixels, sshot->pitch);
         // std::string fileName = std::to_string(count) + ".bmp";
         // SDL_SaveBMP(sshot, fileName.c_str());
         // SDL_FreeSurface(sshot);
-
-
-        stop = high_resolution_clock::now();
-        auto SDLRenderDuration = duration_cast<microseconds>(stop - start);
-        // std::cerr << "\rgpuRender time : " << gpuRenderDuration.count()/1000 << " ms " << "gpuCopyFromDevice time : " << gpuCopyFromDeviceDuration.count()/1000 << " ms " << "SDLRender time : " << SDLRenderDuration.count()/1000 << " ms " << std::flush;
        
 
         // Zoom in code by https://www.youtube.com/watch?v=KnCNfBb2ODQ
@@ -318,9 +329,6 @@ int main(int argc, char* argv[])
         // output_start+=0.15*factor;
         // output_end-=0.1*factor;
         // factor *= 0.9550;
-
-
-        // std::chrono::duration<float> duration = timer.duration;
 
         //Duration of 1 input pattern in ms
 		float iterationTime = (float) std::chrono::duration_cast<std::chrono::microseconds>(timer.duration).count()/1000;
@@ -332,7 +340,7 @@ int main(int argc, char* argv[])
 			
         // Update every 1 second    
         if((count == 1) || (count % x) == 0)
-            std::cerr << "\r" << " Iterations: " << n_max <<" fps: " << fps << std::flush;
+            std::cerr << "\r" << " Iterations: " << n_max <<" fps: " << fps << " gpuRender time : " << gpuRenderDuration.count()/1000 << " ms " << "gpuCopyFromDevice time : " << gpuCopyFromDeviceDuration.count()/1000 << " ms " << "SDLRender time : " << SDLRenderDuration.count()/1000 << " ms " << std::flush;
 
 
         

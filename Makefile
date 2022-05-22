@@ -5,7 +5,7 @@ MYPROGRAM=cundelbrot
 all: ${MYPROGRAM}
 
 cundelbrot: main.o gpu.o
-	${CXX} -o ${MYPROGRAM} main.o gpu.o -lSDL2 -lcudart
+	${CXX} -o ${MYPROGRAM} main.o gpu.o -lSDL2 -lglfw -lcudart
 
 main.o: main.cpp
 	${CXX} -c -o main.o main.cpp
