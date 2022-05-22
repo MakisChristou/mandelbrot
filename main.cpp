@@ -73,8 +73,8 @@ class Timer{
 
 int main(int argc, char* argv[])
 {
-    int image_width = 2080;
-    int image_height = 2080; 
+    int image_width = 1080;
+    int image_height = 1080; 
 
     int n_max = 64; // 4096
     int s_max = 8; // prefer to be a power of 2
@@ -215,7 +215,7 @@ int main(int argc, char* argv[])
                     output_end_y-=distance_y/(1*100);
                 }
 
-
+                // W/S for changing maximum iterations
                 if(event.key.keysym.sym == SDLK_w)
                 {
                     n_max++;
@@ -224,6 +224,28 @@ int main(int argc, char* argv[])
                 {   
                     if(n_max > 1)
                         n_max--;
+                }
+
+                // E/D for changing super samples
+                if(event.key.keysym.sym == SDLK_e)
+                {
+                    s_max++;
+                }
+                else if(event.key.keysym.sym == SDLK_d)
+                {   
+                    if(s_max > 2)
+                        s_max--;
+                }
+
+                // Reset to default
+                if(event.key.keysym.sym == SDLK_0)
+                {
+                    output_start_x = -3.0f;
+                    output_end_x = 2.66f;
+                    output_start_y = -3.0f;
+                    output_end_y = 2.66f;
+                    n_max = 64;
+                    s_max = 8;
                 }
 
             }
@@ -340,7 +362,7 @@ int main(int argc, char* argv[])
 			
         // Update every 1 second    
         if((count == 1) || (count % x) == 0)
-            std::cerr << "\r" << " Iterations: " << n_max <<" fps: " << fps << " gpuRender time : " << gpuRenderDuration.count()/1000 << " ms " << "gpuCopyFromDevice time : " << gpuCopyFromDeviceDuration.count()/1000 << " ms " << "SDLRender time : " << SDLRenderDuration.count()/1000 << " ms " << std::flush;
+            std::cerr << "\r" << " Iterations: " << n_max << " AA: " << s_max << " fps: " << fps << " gpuRender: " << gpuRenderDuration.count()/1000 << " ms " << "gpuCopyFromDevice: " << gpuCopyFromDeviceDuration.count()/1000 << " ms " << "SDLRender: " << SDLRenderDuration.count()/1000 << " ms " << std::flush;
 
 
         

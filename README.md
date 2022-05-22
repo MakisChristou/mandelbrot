@@ -14,12 +14,15 @@ make
 ./cundelbrot
 ```
 
-## Converting output to png
+## Hotkeys
 
-```
-sudo apt install sudo apt install imagemagick
-convert file.ppm file.png
-```
+| Key       | Function  | 
+| ------------- |:-------------:|
+| Arrow Keys | Pan around |
+| W/S | +/- max iterations |
+| E/D | +/- anti aliasing |
+| Scrolwheel | Zoom |
+| 0 | Reset to default |
 
 ## GPU vs CPU
 
