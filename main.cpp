@@ -12,7 +12,17 @@
 using namespace std::chrono;
 
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_opengl.h>
 #include <GLFW/glfw3.h>
+
+typedef struct{
+    long double output_start_x;
+    long double output_end_x;
+    long double output_start_y;
+    long double output_end_y;
+    int n_max;
+    int s_max;
+}Keyframe;
 
 // Convert pixel coords to complex coords
 inline long double map(long double input, long double output_start, long double output_end, long double input_start, long double input_end)
@@ -73,12 +83,13 @@ class Timer{
 
 int main(int argc, char* argv[])
 {
-    int image_width = 1080;
-    int image_height = 1080; 
+    int image_width = 720;
+    int image_height = 720; 
 
     int n_max = 64; // 4096
     int s_max = 8; // prefer to be a power of 2
 
+    double animationFrames = 1200.0f;
 
     int N = image_width;
     int M = image_height; 
@@ -88,6 +99,8 @@ int main(int argc, char* argv[])
     double output_start_y = -3.0f;
     double output_end_y = 2.66f;
 
+    Keyframe keyframes[2];
+
 
     double factor = 1.0f;
     int palleteSize = 5;
@@ -96,7 +109,7 @@ int main(int argc, char* argv[])
     long double scaleX = 1.00f;
     long double scaleY = 1.00f;
 
-    int count = 0; // frame counter
+    int frameCount = 0; // frame counter
 
 
     // SDL Stuff
@@ -106,7 +119,6 @@ int main(int argc, char* argv[])
     SDL_Event event;
     SDL_CreateWindowAndRenderer(image_width, image_height, 0, &window, &renderer);
     SDL_RenderSetLogicalSize(renderer, image_width, image_height);
-
 
     // Number of bytes to allocate for N doubles
     // size_t iterationBytes = N*M*sizeof(int);
@@ -170,13 +182,16 @@ int main(int argc, char* argv[])
     SDL_Texture* theTexture = SDL_CreateTexture( renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, image_width, image_height );
     uint32_t *textureBuffer = new uint32_t[ image_width * image_height ];
 
+    bool startPlayback = false;
+    int playBackFrames = 0;
+    double n_max_double;
+    
 
     // Main render loop
     while(1)
     {
         Timer timer;
 
-        
         SDL_RenderPresent(renderer);
         SDL_Event event;
         while (SDL_PollEvent(&event))
@@ -248,6 +263,32 @@ int main(int argc, char* argv[])
                     s_max = 8;
                 }
 
+                if(event.key.keysym.sym == SDLK_i)
+                {
+                    keyframes[0].output_start_x = output_start_x;
+                    keyframes[0].output_end_x = output_end_x;
+                    keyframes[0].output_start_y = output_start_y;
+                    keyframes[0].output_end_y = output_end_y;
+                    keyframes[0].n_max = n_max;
+                    keyframes[0].s_max = s_max;
+                }
+
+                if(event.key.keysym.sym == SDLK_o)
+                {
+                    keyframes[1].output_start_x = output_start_x;
+                    keyframes[1].output_end_x = output_end_x;
+                    keyframes[1].output_start_y = output_start_y;
+                    keyframes[1].output_end_y = output_end_y;
+                    keyframes[1].n_max = n_max;
+                    keyframes[1].s_max = s_max;
+                }
+
+                // Render animation
+                if(event.key.keysym.sym == SDLK_p)
+                {
+                    startPlayback = true;
+                }
+
             }
 
             // Scroll Wheel
@@ -282,6 +323,68 @@ int main(int argc, char* argv[])
 
                 
             }
+        }
+
+
+        // Animate zoom out
+        if(startPlayback)
+        {
+            long double distance_x = output_end_x - output_start_x;
+            long double distance_y = output_end_y - output_start_y;
+            playBackFrames++;
+
+            // Set once to not cutoff decimal
+            if(playBackFrames == 1)
+            {
+                n_max_double = n_max;
+            }
+
+            // Animate Keyframes
+            if(playBackFrames <= animationFrames)
+            {
+                
+                double n_maxDistance = keyframes[1].n_max - keyframes[0].n_max; // n_max_end - n_max_start
+                double n_maxDiff = n_maxDistance/animationFrames;
+                n_max_double-=n_maxDiff;
+                n_max = (int)n_max_double;
+
+                // std::cerr << keyframes[0].n_max << " " << keyframes[1].n_max << " " << n_max << " " << iterDiff << " " << playBackFrames << std::endl;
+                double output_start_x_Distance = keyframes[1].output_start_x - keyframes[0].output_start_x;
+                double output_start_x_Diff = output_start_x_Distance/animationFrames;
+                output_start_x-=output_start_x_Diff;
+
+
+                double output_start_y_Distance = keyframes[1].output_start_y - keyframes[0].output_start_y;
+                double output_start_y_Diff = output_start_y_Distance/animationFrames;
+                output_start_y-=output_start_y_Diff;
+
+
+                double output_end_x_Distance = keyframes[1].output_end_x - keyframes[0].output_end_x;
+                double output_end_x_Diff = output_end_x_Distance/animationFrames;
+                output_end_x-=output_end_x_Diff;
+
+
+                double output_end_y_Distance = keyframes[1].output_end_y - keyframes[0].output_end_y;
+                double output_end_y_Diff = output_end_y_Distance/animationFrames;
+                output_end_y-=output_end_y_Diff;
+
+            }
+            else
+            {
+                startPlayback = false;
+                playBackFrames = 0;
+            }
+
+
+            // Segfault here ?
+            // SDL_Surface* sshot = SDL_GetWindowSurface(window);
+            // printf("Test1");
+            // SDL_RenderReadPixels(renderer, NULL, SDL_PIXELFORMAT_BGRA8888, sshot->pixels, sshot->pitch);
+            // std::string fileName = std::to_string(count) + ".bmp";
+            // SDL_SaveBMP(sshot, fileName.c_str());
+            // SDL_FreeSurface(sshot);
+
+            
         }
 
 
@@ -336,13 +439,7 @@ int main(int argc, char* argv[])
         stop = high_resolution_clock::now();
         auto SDLRenderDuration = duration_cast<microseconds>(stop - start);
 
-        // Segfault here ?
-        // SDL_Surface* sshot = SDL_GetWindowSurface(window);
-        // printf("Test1");
-        // SDL_RenderReadPixels(renderer, NULL, SDL_PIXELFORMAT_BGRA8888, sshot->pixels, sshot->pitch);
-        // std::string fileName = std::to_string(count) + ".bmp";
-        // SDL_SaveBMP(sshot, fileName.c_str());
-        // SDL_FreeSurface(sshot);
+
        
 
         // Zoom in code by https://www.youtube.com/watch?v=KnCNfBb2ODQ
@@ -361,13 +458,13 @@ int main(int argc, char* argv[])
 			x = 1;	
 			
         // Update every 1 second    
-        if((count == 1) || (count % x) == 0)
+        if((frameCount == 1) || (frameCount % x) == 0)
             std::cerr << "\r" << " Iterations: " << n_max << " AA: " << s_max << " fps: " << fps << " gpuRender: " << gpuRenderDuration.count()/1000 << " ms " << "gpuCopyFromDevice: " << gpuCopyFromDeviceDuration.count()/1000 << " ms " << "SDLRender: " << SDLRenderDuration.count()/1000 << " ms " << std::flush;
 
 
         
 
-        count++;
+        frameCount++;
 
     }
 
