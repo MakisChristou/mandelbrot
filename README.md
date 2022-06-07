@@ -21,8 +21,12 @@ make
 | Arrow Keys | Pan around |
 | W/S | +/- max iterations |
 | E/D | +/- anti aliasing |
-| Scrolwheel | Zoom |
+| Scrolwheel | Zoom In/Out |
 | 0 | Reset to default |
+| i | Set start keyframe |
+| o | Set end keyframe |
+| p | Playback animation |
+| r | Render animation | 
 
 ## GPU vs CPU
 

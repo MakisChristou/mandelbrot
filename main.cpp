@@ -81,6 +81,11 @@ class Timer{
 	}
 };
 
+double logWithBase(double x, double base)
+{
+    return log(x) / log(base);
+}
+
 int main(int argc, char* argv[])
 {
     int image_width = 720;
@@ -89,7 +94,7 @@ int main(int argc, char* argv[])
     int n_max = 64; // 4096
     int s_max = 8; // prefer to be a power of 2
 
-    double animationFrames = 1200.0f;
+    double animationFrames = 4*120.0f;
 
     int N = image_width;
     int M = image_height; 
@@ -185,6 +190,7 @@ int main(int argc, char* argv[])
     bool startPlayback = false;
     int playBackFrames = 0;
     double n_max_double;
+    int linearAnimation = 0;
     
 
     // Main render loop
@@ -235,6 +241,8 @@ int main(int argc, char* argv[])
                 {
                     n_max++;
                 }
+                
+                // W/S for changing maximum iterations
                 else if(event.key.keysym.sym == SDLK_s)
                 {   
                     if(n_max > 1)
@@ -246,13 +254,15 @@ int main(int argc, char* argv[])
                 {
                     s_max++;
                 }
+                
+                // E/D for changing super samples
                 else if(event.key.keysym.sym == SDLK_d)
                 {   
                     if(s_max > 2)
                         s_max--;
                 }
 
-                // Reset to default
+                // 0 to reset to default
                 if(event.key.keysym.sym == SDLK_0)
                 {
                     output_start_x = -3.0f;
@@ -263,6 +273,7 @@ int main(int argc, char* argv[])
                     s_max = 8;
                 }
 
+                // i: Set start Keyframe
                 if(event.key.keysym.sym == SDLK_i)
                 {
                     keyframes[0].output_start_x = output_start_x;
@@ -273,6 +284,7 @@ int main(int argc, char* argv[])
                     keyframes[0].s_max = s_max;
                 }
 
+                // o: Set end keyframe
                 if(event.key.keysym.sym == SDLK_o)
                 {
                     keyframes[1].output_start_x = output_start_x;
@@ -283,10 +295,16 @@ int main(int argc, char* argv[])
                     keyframes[1].s_max = s_max;
                 }
 
-                // Render animation
+                // PLayback animation
                 if(event.key.keysym.sym == SDLK_p)
                 {
                     startPlayback = true;
+                }
+
+                // Render animation
+                if(event.key.keysym.sym == SDLK_r)
+                {
+                    //startPlayback = true;
                 }
 
             }
@@ -339,48 +357,92 @@ int main(int argc, char* argv[])
                 n_max_double = n_max;
             }
 
-            // Animate Keyframes
-            if(playBackFrames <= animationFrames)
+            // Linear Animation
+            if (linearAnimation)
             {
-                
-                double n_maxDistance = keyframes[1].n_max - keyframes[0].n_max; // n_max_end - n_max_start
-                double n_maxDiff = n_maxDistance/animationFrames;
-                n_max_double-=n_maxDiff;
-                n_max = (int)n_max_double;
+                // If animation is not finished, animate Keyframes
+                if(playBackFrames <= animationFrames)
+                {
+                    
+                    double n_maxDistance = keyframes[1].n_max - keyframes[0].n_max; // n_max_end - n_max_start
+                    double n_maxDiff = n_maxDistance/animationFrames;
+                    n_max_double-=n_maxDiff;
+                    n_max = (int)n_max_double;
 
-                // std::cerr << keyframes[0].n_max << " " << keyframes[1].n_max << " " << n_max << " " << iterDiff << " " << playBackFrames << std::endl;
-                double output_start_x_Distance = keyframes[1].output_start_x - keyframes[0].output_start_x;
-                double output_start_x_Diff = output_start_x_Distance/animationFrames;
-                output_start_x-=output_start_x_Diff;
-
-
-                double output_start_y_Distance = keyframes[1].output_start_y - keyframes[0].output_start_y;
-                double output_start_y_Diff = output_start_y_Distance/animationFrames;
-                output_start_y-=output_start_y_Diff;
+                    double output_start_x_Distance = keyframes[1].output_start_x - keyframes[0].output_start_x;
+                    double output_start_x_Diff = output_start_x_Distance/animationFrames;
+                    output_start_x-=output_start_x_Diff;
 
 
-                double output_end_x_Distance = keyframes[1].output_end_x - keyframes[0].output_end_x;
-                double output_end_x_Diff = output_end_x_Distance/animationFrames;
-                output_end_x-=output_end_x_Diff;
+                    double output_start_y_Distance = keyframes[1].output_start_y - keyframes[0].output_start_y;
+                    double output_start_y_Diff = output_start_y_Distance/animationFrames;
+                    output_start_y-=output_start_y_Diff;
 
 
-                double output_end_y_Distance = keyframes[1].output_end_y - keyframes[0].output_end_y;
-                double output_end_y_Diff = output_end_y_Distance/animationFrames;
-                output_end_y-=output_end_y_Diff;
+                    double output_end_x_Distance = keyframes[1].output_end_x - keyframes[0].output_end_x;
+                    double output_end_x_Diff = output_end_x_Distance/animationFrames;
+                    output_end_x-=output_end_x_Diff;
 
+
+                    double output_end_y_Distance = keyframes[1].output_end_y - keyframes[0].output_end_y;
+                    double output_end_y_Diff = output_end_y_Distance/animationFrames;
+                    output_end_y-=output_end_y_Diff;
+
+                }
+                else
+                {
+                    startPlayback = false;
+                    playBackFrames = 0;
+                }
             }
+            
+            // Logarithmic Animation
             else
             {
-                startPlayback = false;
-                playBackFrames = 0;
+                // If animation is not finished, animate Keyframes
+                if(playBackFrames <= animationFrames)
+                {
+                    
+                    double n_maxDistance = keyframes[1].n_max - keyframes[0].n_max; // n_max_end - n_max_start
+                    double n_maxDiff = n_maxDistance * logWithBase(playBackFrames, animationFrames) + keyframes[0].n_max; //
+                    n_max_double=n_maxDiff;
+                    n_max = (int)n_max_double;
+                    
+
+                    double output_start_x_Distance = keyframes[1].output_start_x - keyframes[0].output_start_x;
+                    double output_start_x_Diff = output_start_x_Distance * log(log(log(playBackFrames) + 1)+1) / log(log(log(animationFrames) + 1)+1) + keyframes[0].output_start_x;
+                    output_start_x=output_start_x_Diff;
+                    std::cerr << output_start_x << std::endl;
+
+                    double output_start_y_Distance = keyframes[1].output_start_y - keyframes[0].output_start_y;
+                    double output_start_y_Diff = output_start_y_Distance * log(log(log(playBackFrames) + 1)+1) / log(log(log(animationFrames) + 1)+1) + keyframes[0].output_start_y;
+                    output_start_y=output_start_y_Diff;
+
+
+                    double output_end_x_Distance = keyframes[1].output_end_x - keyframes[0].output_end_x;
+                    double output_end_x_Diff = output_end_x_Distance * log(log(log(playBackFrames) + 1)+1) / log(log(log(animationFrames) + 1)+1) + keyframes[0].output_end_x;
+                    output_end_x=output_end_x_Diff;
+
+
+                    double output_end_y_Distance = keyframes[1].output_end_y - keyframes[0].output_end_y;
+                    double output_end_y_Diff = output_end_y_Distance * log(log(log(playBackFrames) + 1)+1) / log(log(log(animationFrames) + 1)+1) + keyframes[0].output_end_y;
+                    output_end_y=output_end_y_Diff;
+
+                }
+                else
+                {
+                    startPlayback = false;
+                    playBackFrames = 0;
+                }
             }
+            
 
 
             // Segfault here ?
             // SDL_Surface* sshot = SDL_GetWindowSurface(window);
             // printf("Test1");
             // SDL_RenderReadPixels(renderer, NULL, SDL_PIXELFORMAT_BGRA8888, sshot->pixels, sshot->pitch);
-            // std::string fileName = std::to_string(count) + ".bmp";
+            // std::string fileName = std::to_string(frameCount) + ".bmp";
             // SDL_SaveBMP(sshot, fileName.c_str());
             // SDL_FreeSurface(sshot);
 
