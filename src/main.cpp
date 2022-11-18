@@ -1,7 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <cstdlib>
-#include <math.h>
+#include <cmath>
 #include <SDL2/SDL.h>
 
 // Global Declarations
@@ -21,44 +21,68 @@ long double factor = 1.0f;
 // long double output_end = 0.36f;
 
 
-
 int n_max = 64; // 4096
-
 int s_max = 4; // prefer to be a power of 2
 
 
 
-typedef struct Color
-{
-    int R;
-    int G;
-    int B;
+class Color
+{   
+    public:
+        int R;
+        int G;
+        int B;
 
-    Color()
-    {
-        R = 0;
-        G = 0;
-        B = 0;
-    }
+        Color()
+        {
+            R = 0;
+            G = 0;
+            B = 0;
+        }
 
-    Color(int r, int g, int b)
-    {
-        R = r;
-        G = g;
-        B = b;
-    }
+        Color(int r, int g, int b)
+        {
+            R = r;
+            G = g;
+            B = b;
+        }
 };
 
-typedef struct Complex
+class Complex
 {
-    long double Re;
-    long double Im;
+    public:
+        long double Re;
+        long double Im;
+
+        Complex()
+        {
+
+        }
+
+        Complex(long double Re, long double Im)
+        {
+            this->Re = Re;
+            this->Im = Im;
+        }
 };
 
-typedef struct cIterations
+class cIterations
 {
-    Complex c;
-    int n;
+    public:
+        Complex c;
+        int n;
+
+        cIterations()
+        {
+
+        }
+
+        cIterations(int n, Complex c)
+        {
+            this->n = n;
+            this->c = c;
+        }
+
 };
 
 
@@ -69,7 +93,7 @@ long double map(long double input, long double output_start, long double output_
 }
 
 // Returns smooth colour based on iteration and C value when escape
-long double smoothColor(int n, Complex c)
+long double smoothColor(int n, const Complex& c)
 {
     long double Zr = c.Re;
     long double Zi = c.Im; 
@@ -88,7 +112,7 @@ inline Color linearInterpolation(const Color& v, const Color& u, double a)
 }
 
 
-Color getColor(int iter, std::vector<Color> colorPallete)
+Color getColor(int iter, const std::vector<Color>& colorPallete)
 {
     // Stolen Code from https://github.com/sevity/mandelbrot
     static const auto max_color = colorPallete.size() - 1;
@@ -110,7 +134,7 @@ Color getColor(int iter, std::vector<Color> colorPallete)
 }
 
 // Prints PPM in std
-void writePPM(std::vector<std::vector<Color>> pixelColors)
+void writePPM(const std::vector<std::vector<Color>>& pixelColors)
 {
     std::cout << "P3\n" << image_width << ' ' << image_height << "\n255\n";
 
@@ -156,7 +180,7 @@ void writePPM(std::vector<std::vector<Color>> pixelColors)
 }
 
 
-cIterations iterateMandelbrot(long double i, long double j)
+cIterations iterateMandelbrot(const long double& i,const long double& j)
 {
     long double complex_i = map(i, output_start, output_end, 0, image_width);
     long double complex_j = map(j, output_start, output_end, 0, image_height);
@@ -179,12 +203,7 @@ cIterations iterateMandelbrot(long double i, long double j)
         n++;
     }
 
-    cIterations citerations;
-    citerations.n = n;
-    citerations.c.Re = x;
-    citerations.c.Re = y;
-
-    return citerations;
+    return cIterations{n, Complex{x,y}};
 }
 
 
@@ -192,26 +211,15 @@ std::vector<Color> generateColorPalete()
 {
     std::vector<Color> colorPalete;
 
-    Color color1;
-    color1.R = 0xFF;
-    color1.G = 0xFF;
-    color1.B = 0xFF;
+    Color color1{0xFF, 0xFF, 0xFF};
 
-    Color color2;
-    color2.R = 0x00;
-    color2.G = 0x00;
-    color2.B = 0x00;
+    Color color2{0x00, 0x00, 0x00};
 
-    Color black;
-    black.R = 0x00;
-    black.G = 0x00;
-    black.B = 0x00;
+    Color black{0x00, 0x00, 0x00};
 
     long double sumR = 0;
     long double sumG = 0;
     long double sumB = 0;
-
-
 
     for(int i = 0; i < n_max; i++)
     {
@@ -229,23 +237,17 @@ std::vector<Color> generateColorPalete()
         }
         else
         {
-            Color tempColor;
-
             // Calculate log step for current iteration
             double long rStep = log2(1 + (color1.R * log2(i)) / 10) / 8;
             double long gStep = log2(1 + (color1.G * log2(i)) / 10) / 8;
             double long bStep = log2(1 + (color1.B * log2(i)) / 10) / 8;
 
-            // 
             sumR += rStep;
             sumG += gStep;
             sumB += bStep;
 
-            tempColor.R = sumR;
-            tempColor.G = sumG;
-            tempColor.B = sumB;
-
-            colorPalete.push_back(tempColor);
+            Color tempColor{sumR, sumG, sumB};
+            colorPalete.emplace_back(tempColor);
         }
     }
 
@@ -295,17 +297,14 @@ int main(int argc, char* argv[])
             }
         }
 
-        
-
-
         // Main Loop
         for(int i = 0; i < image_width; i++)
         {
             std::cerr << "\rScanlines remaining: " << image_width - i << " " <<  std::flush;
 
-            IterationCounts.push_back(std::vector<int>());
-            IterationValues.push_back(std::vector<Complex>());
-            pixelColours.push_back(std::vector<Color>());
+            IterationCounts.emplace_back(std::vector<int>());
+            IterationValues.emplace_back(std::vector<Complex>());
+            pixelColours.emplace_back(std::vector<Color>());
 
             for(int j = 0; j < image_height; j++)
             {
@@ -334,17 +333,14 @@ int main(int argc, char* argv[])
 
                 Color color = getColor(n, colorPallete);
 
-                IterationCounts[i].push_back(n);
-                IterationValues[i].push_back(c);
-                pixelColours[i].push_back(color);
+                IterationCounts[i].emplace_back(n);
+                IterationValues[i].emplace_back(c);
+                pixelColours[i].emplace_back(color);
 
 
                 // SDL Draw
                 SDL_SetRenderDrawColor(renderer, color.R, color.G, color.B, 255);
                 SDL_RenderDrawPoint(renderer, i, j);
-
-                
-
             }
         }
 
@@ -353,17 +349,7 @@ int main(int argc, char* argv[])
         output_end-=0.1*factor;
         factor *= 0.9349;
         // n_max+=5;
-
     }
-
-    // return 0;
-
-
-
-
-
-
-    // writePPM(pixelColours);
 
     return 0;
 }
