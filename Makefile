@@ -1,7 +1,7 @@
 #------------------------------------------------------------------------------
 SOURCE=./src/main.cpp
 MYPROGRAM=mandelbrot
-LIBS=-lSDL2
+LIBS=-lsfml-graphics -lsfml-window -lsfml-system
 CC=g++
 
 #------------------------------------------------------------------------------
