@@ -3,7 +3,7 @@
 
 ## Compilation (Ubuntu 22.04)
 ```
-sudo apt-get install libsdl2-dev
+sudo apt-get install libsfml-dev
 cd Mandelbrot
 make
 ```
