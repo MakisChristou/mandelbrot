@@ -1,17 +1,17 @@
-# Mandelbrot set renderer
+# Rusty Mandelbrot set renderer
 
 
 ## Compilation (Ubuntu 22.04)
 ```
-sudo apt-get install libsfml-dev
+sudo apt install cargo
 cd Mandelbrot
-make
+cargo build --release
 ```
 
 ## Running
 
 ```
-./mandelbrot
+./target/release/mandelbrot > file.ppm
 ```
 
 ## Converting output to png
