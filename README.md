@@ -1,22 +1,33 @@
 # Mandelbrot set renderer
 
 
-## Compilation (Ubuntu 22.04)
+## Install Dependencies
+
+### Debian
+```bash
+sudo apt-get install libsfml-dev libomp-dev
 ```
-sudo apt-get install libsfml-dev
-cd Mandelbrot
+
+### Arch
+```bash
+sudo pacman -S sfml openmp
+```
+
+## Compilation
+
+```bash
 make
 ```
 
 ## Running
 
-```
-./mandelbrot
+```bash
+./mb
 ```
 
 ## Converting output to png
 
-```
+```bash
 sudo apt install sudo apt install imagemagick
 convert file.ppm file.png
 ```
