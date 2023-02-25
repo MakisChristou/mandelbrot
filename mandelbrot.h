@@ -26,8 +26,6 @@ class Mandelbrot
         int n_max = 64; // 4096
         int s_max = 4; // prefer to be a power of 2
 
-        std::vector<std::vector<int>> IterationCounts; // Number of iterations per pixel
-        std::vector<std::vector<Complex>> IterationValues; // Value of function after n iterations
         std::vector<std::vector<Color>> pixelColours;
         
         // Stolen color Pallete
@@ -64,7 +62,7 @@ class Mandelbrot
             return Color(b * v.R + a * u.R, b*v.G + a * u.G, b*v.B + a * u.B);
         }
 
-        Color getColor(int iter, const std::vector<Color>& colorPallete)
+        inline Color getColor(int iter, const std::vector<Color>& colorPallete)
         {
             // Stolen Code from https://github.com/sevity/mandelbrot
             static const auto max_color = colorPallete.size() - 1;
@@ -110,66 +108,6 @@ class Mandelbrot
             }
 
             return cIterations{n, Complex{x,y}};
-        }
-
-        inline void mandelbrot_avx2(double complex_i, double complex_j, int* output, int size)
-        {
-            // Define AVX2 constants
-            const __m256d four = _mm256_set1_pd(4.0);
-            const __m256d two = _mm256_set1_pd(2.0);
-
-            for (int i = 0; i < size; i += 4) {
-                // Initialize vectors for x0 and y0
-                __m256d x0 = _mm256_setzero_pd();
-                __m256d y0 = _mm256_setzero_pd();
-
-                // Initialize vectors for x and y
-                __m256d x = _mm256_setzero_pd();
-                __m256d y = _mm256_setzero_pd();
-
-                // Initialize vector for n
-                __m256i n = _mm256_setzero_si256();
-
-                // Loop until x*x + y*y > 4 or n >= n_max
-                while (true)
-                {
-                    // Compute x^2 and y^2
-                    __m256d x2 = _mm256_mul_pd(x, x);
-                    __m256d y2 = _mm256_mul_pd(y, y);
-
-                    // Compute x*x + y*y
-                    __m256d x2y2 = _mm256_add_pd(x2, y2);
-
-                    // Check if x*x + y*y > 4 or n >= n_max
-                    __m256d cmp = _mm256_cmp_pd(x2y2, four, _CMP_LE_OS);
-                    __m256i mask = _mm256_and_si256(_mm256_castpd_si256(cmp), _mm256_set1_epi32(1));
-                    int m = _mm256_movemask_epi8(mask);
-                    if (m == 0) {
-                        break;
-                    }
-
-                    // Increment n for each element where the condition is true
-                    n = _mm256_add_epi32(n, _mm256_and_si256(mask, _mm256_set1_epi32(1)));
-
-                    // Update x and y using the AVX2 version of the original code
-                    __m256d x0_sq = _mm256_mul_pd(x0, x0);
-                    __m256d y0_sq = _mm256_mul_pd(y0, y0);
-                    x = _mm256_add_pd(_mm256_sub_pd(x0_sq, y0_sq), _mm256_set1_pd(complex_i));
-                    y = _mm256_add_pd(_mm256_mul_pd(_mm256_mul_pd(two, x0), y0), _mm256_set1_pd(complex_j));
-
-                    // Update x0 and y0
-                    x0 = x;
-                    y0 = y;
-                }
-
-                // Store the values of n in the output array
-                int n_arr[4];
-                _mm256_storeu_si256((__m256i*)n_arr, n);
-                output[i] = n_arr[0];
-                output[i+1] = n_arr[1];
-                output[i+2] = n_arr[2];
-                output[i+3] = n_arr[3];
-            }
         }
 
         std::vector<Color> generateColorPalete()
@@ -222,16 +160,10 @@ class Mandelbrot
     public:
         Mandelbrot()
         {
-            IterationCounts.reserve(image_width);
-            IterationValues.reserve(image_width);
         }
 
         Mandelbrot(int image_width, int image_height, long double output_start, long double output_end, long double factor, int n_max, int s_max)
         {
-            IterationCounts.reserve(image_width);
-            IterationValues.reserve(image_width);
-
-
             this->image_width = image_width;
             this->image_height = image_height;
 
@@ -245,14 +177,10 @@ class Mandelbrot
 
             for(int i = 0; i < image_width; i++)
             {
-                IterationCounts.emplace_back(std::vector<int>());
-                IterationValues.emplace_back(std::vector<Complex>());
                 pixelColours.emplace_back(std::vector<Color>());
 
                 for(int j = 0; j < image_height; j++)
                 {                    
-                    IterationCounts[i].emplace_back(0);
-                    IterationValues[i].emplace_back(Complex{0,0});
                     pixelColours[i].emplace_back(Color{0,0,0});
                 }
             }
@@ -272,12 +200,60 @@ class Mandelbrot
             }
         }
 
+        void vectorized_loop(double* x0_array, double* y0_array, long double* complex_i_array, long double* complex_j_array, int* n_max_array, int array_size, int* sum_array)
+        {
+            int i = 0;
+            while (i < array_size)
+            {
+                int n = 0;
+                __m256d x_vec = _mm256_set_pd(x0_array[i], x0_array[i+1], x0_array[i+2], x0_array[i+3]);
+                __m256d y_vec = _mm256_set_pd(y0_array[i], y0_array[i+1], y0_array[i+2], y0_array[i+3]);
+                __m256d complex_i_vec = _mm256_set1_pd(*complex_i_array);
+                __m256d complex_j_vec = _mm256_set1_pd(*complex_j_array);
+                __m256d threshold_vec = _mm256_set1_pd(4);
+                __m256i n_max_vec = _mm256_set1_epi32(*n_max_array);
+
+                while (true)
+                {
+                    __m256d x_squared = _mm256_mul_pd(x_vec, x_vec);
+                    __m256d y_squared = _mm256_mul_pd(y_vec, y_vec);
+                    __m256d sum_squared = _mm256_add_pd(x_squared, y_squared);
+                    __m256d mask = _mm256_cmp_pd(sum_squared, threshold_vec, _CMP_LE_OQ);
+                    __m256i n_vec = _mm256_set1_epi32(n);
+                    __m256i n_max_mask = _mm256_cmpgt_epi32(n_max_vec, n_vec);
+                    mask = _mm256_and_pd(mask, _mm256_castsi256_pd(n_max_mask));
+
+                    int active_mask = _mm256_movemask_pd(mask);
+                    if (active_mask == 0)
+                    {
+                        break;
+                    }
+
+                    n += 4 - active_mask;
+
+                    __m256d x0_vec = x_vec;
+                    __m256d y0_vec = y_vec;
+
+                    x_vec = _mm256_sub_pd(_mm256_add_pd(_mm256_mul_pd(x_vec, x_vec), _mm256_mul_pd(y_vec, y_vec)), _mm256_sub_pd(complex_i_vec, complex_i_vec));
+                    y_vec = _mm256_add_pd(_mm256_mul_pd(_mm256_mul_pd(_mm256_set1_pd(2.0), x0_vec), y0_vec), complex_j_vec);
+
+                    x0_vec = _mm256_blendv_pd(x0_vec, x_vec, mask);
+                    y0_vec = _mm256_blendv_pd(y0_vec, y_vec, mask);
+
+                    _mm256_store_pd(&x0_array[i], x0_vec);
+                    _mm256_store_pd(&y0_array[i], y0_vec);
+                }
+
+                sum_array[i] += n;
+                i += 4;
+            }
+        }
+
         void render()
         {   
-            for(int j = 0; j < image_height; j++)
-            
+            for(int i = 0; i < image_width; i++)
             {
-                for(int i = 0; i < image_width; i++)
+                for(int j = 0; j < image_height; j++)
                 {
                     uint64_t sum = 0;
 
@@ -288,8 +264,7 @@ class Mandelbrot
 
                         long double complex_i = map(ii, output_start, output_end, 0, image_width);
                         long double complex_j = map(jj, output_start, output_end, 0, image_height);
-
-
+                        
                         long double x0 = 0;
                         long double y0 = 0;
                         

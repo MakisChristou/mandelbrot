@@ -11,7 +11,7 @@ DEBUG_FLAGS= -g -O0 -Wall
 all: $(MYPROGRAM)
 
 $(MYPROGRAM): main.cpp mandelbrot.h color.h cIterations.h
-	$(CC) $(DEBUG_FLAGS) main.cpp mandelbrot.h color.h cIterations.h -o $(MYPROGRAM) $(LIBS)
+	$(CC) $(FLAGS) main.cpp mandelbrot.h color.h cIterations.h -o $(MYPROGRAM) $(LIBS)
 
 clean:
 	rm -f $(MYPROGRAM) *.ppm

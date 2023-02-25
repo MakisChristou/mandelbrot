@@ -20,16 +20,8 @@ int main(int argc, char* argv[])
     int s_max = 4; // prefer to be a power of 2
 
     Mandelbrot mandelbrot = Mandelbrot{image_width, image_height, output_start, output_end, factor, n_max, s_max};
-    
-    // for(int i = 0; i < 10; i++)
-    // {
-    //     mandelbrot.zoom();
-    // }
 
     mandelbrot.render();
-    // mandelbrot.writePPM();    
-    
-    
 
 
     return 0;

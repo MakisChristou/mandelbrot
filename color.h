@@ -1,12 +1,14 @@
 #ifndef COLOR_H
 #define COLOR_H
 
+#include <cstdint>
+
 class Color
 {   
     public:
-        int R;
-        int G;
-        int B;
+        uint8_t R;
+        uint8_t G;
+        uint8_t B;
 
         Color()
         {
@@ -15,7 +17,7 @@ class Color
             B = 0;
         }
 
-        Color(int r, int g, int b)
+        Color(uint8_t r, uint8_t g, uint8_t b)
         {
             R = r;
             G = g;
