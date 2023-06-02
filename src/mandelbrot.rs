@@ -1,19 +1,27 @@
+use std::error::Error;
+
 use crate::color::Color;
+
 
 pub struct Mandelbrot {
     width: u32,
     height: u32,
-
     output_start: f64,
     output_end: f64,
-
     factor: f64,
-
     n_max: u32,
     s_max: u32,
-
     pixel_colours: Vec<Vec<Color>>,
     color_pallete: Vec<Color>,
+}
+
+#[derive(Debug)]
+
+pub enum MandelbrotError{
+    InvalidDimentions,
+    InvalidRenderRange,
+    InvalidIterations,
+    InvalidAntiAliasing(&'static str),
 }
 
 impl Mandelbrot {
@@ -25,7 +33,25 @@ impl Mandelbrot {
         factor: f64,
         n_max: u32,
         s_max: u32,
-    ) -> Self {
+    ) -> Result<Self, MandelbrotError>  {
+        
+        if width != height {
+            return Err(MandelbrotError::InvalidDimentions);
+        }
+
+        if output_start >= output_end {
+            return Err(MandelbrotError::InvalidRenderRange);
+        }
+
+        if n_max <=0 {
+            return Err(MandelbrotError::InvalidIterations);
+        }
+
+        if s_max <=0  || !s_max.is_power_of_two() {
+            return Err(MandelbrotError::InvalidAntiAliasing("Must be a power of 2"))
+        }
+
+
         let pixel_colours: Vec<Vec<Color>> = vec![vec![]];
 
         // Default color pallete
@@ -37,7 +63,7 @@ impl Mandelbrot {
             Color::new(0, 2, 0),
         ];
 
-        Mandelbrot {
+        Ok(Mandelbrot {
             width,
             height,
             output_start,
@@ -48,7 +74,7 @@ impl Mandelbrot {
 
             pixel_colours,
             color_pallete,
-        }
+        })
     }
 
     fn map(
