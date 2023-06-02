@@ -50,8 +50,9 @@ impl Renderable for Mandelbrot {
                 while k < 1.0 {
                     let ii = i as f64 + k;
                     let jj = j as f64 + k;
-
-                    let citerations = self.iterate_mandelbrot(ii, jj);
+                    
+                    let coordinates = self.pixels_to_coordinates(ii, jj);
+                    let citerations = self.iterate_mandelbrot(coordinates.0, coordinates.1);
 
                     n = citerations.2;
                     c = (citerations.0, citerations.1);
@@ -173,7 +174,7 @@ impl Mandelbrot {
         c
     }
 
-    fn iterate_mandelbrot(&self, i: f64, j: f64) -> (f64, f64, u32) {
+    fn pixels_to_coordinates(&self, i: f64, j: f64) -> (f64, f64) {
         let complex_i = Mandelbrot::map(
             i,
             self.output_start,
@@ -190,7 +191,11 @@ impl Mandelbrot {
             self.height as f64,
         ).expect("Divide by 0 occured");
 
-    
+        (complex_i, complex_j)
+    }
+
+    fn iterate_mandelbrot(&self, complex_i: f64, complex_j: f64) -> (f64, f64, u32) {
+
         let mut x0 = 0.0;
         let mut y0 = 0.0;
 
@@ -232,4 +237,71 @@ impl Mandelbrot {
             j += 1;
         }
     }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use crate::mandelbrot::MandelbrotError;
+    use super::{Mandelbrot, Renderable};
+
+    #[test]
+    fn should_instantiate_mandelbrot(){
+        let mandelbrot = Mandelbrot::new(1000, 1000, -2.0, 2.0, 1.0, 64, 4);
+        assert!(mandelbrot.is_ok());
+    }
+
+    #[test]
+    fn width_equal_to_height() {
+        let mandelbrot = Mandelbrot::new(640, 480, -2.0, 2.0, 1.0, 64, 4);
+        assert!(matches!(mandelbrot, Err(MandelbrotError::InvalidDimentions)));
+    }
+
+    #[test]
+    fn start_before_end(){
+        let mandelbrot = Mandelbrot::new(1000, 1000, 2.0, -2.0, 1.0, 64, 4);
+        assert!(matches!(mandelbrot, Err(MandelbrotError::InvalidRenderRange)));
+    }
+
+    #[test]
+    fn valid_iterations(){
+        let mandelbrot = Mandelbrot::new(1000, 1000, -2.0, 2.0, 1.0, 0, 4);
+        assert!(matches!(mandelbrot, Err(MandelbrotError::InvalidIterations)));
+    }
+
+    #[test]
+    fn valid_anti_aliasing(){
+        let mandelbrot = Mandelbrot::new(1000, 1000, -2.0, 2.0, 1.0, 64, 5);
+        assert!(matches!(mandelbrot, Err(MandelbrotError::InvalidAntiAliasing("Must be a power of 2"))));
+    }
+
+    #[test]
+    fn does_not_diverge_to_infinity_at_zero(){
+
+        let n_max = 64;
+        let mandelbrot = Mandelbrot::new(1000, 1000, -2.0, 2.0, 1.0, n_max, 4);
+        
+        match mandelbrot {
+            Ok(mut mandelbrot) =>  {
+                let iterations = mandelbrot.iterate_mandelbrot(0.0, 0.0);
+                assert_eq!(iterations.2, n_max)
+            },
+            Err(_) => {assert!(false)}
+        }
+    }
+
+    #[test]
+    fn diverges_to_infinity_at_known_point(){
+        
+        let mandelbrot = Mandelbrot::new(1000, 1000, -2.0, 2.0, 1.0, 64, 4);
+        
+        match mandelbrot {
+            Ok(mut mandelbrot) =>  {
+                let iterations = mandelbrot.iterate_mandelbrot(-100.0, 0.0);
+                assert_eq!(iterations.2, 1)
+            },
+            Err(_) => {assert!(false)}
+        }
+    }
+
 }
