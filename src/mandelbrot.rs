@@ -22,6 +22,7 @@ pub enum MandelbrotError{
     InvalidRenderRange,
     InvalidIterations,
     InvalidAntiAliasing(&'static str),
+    DivideByZero,
 }
 
 impl Mandelbrot {
@@ -83,9 +84,12 @@ impl Mandelbrot {
         output_end: f64,
         input_start: f64,
         input_end: f64,
-    ) -> f64 {
-        output_start
-            + ((output_end - output_start) / (input_end - input_start)) * (input - input_start)
+    ) -> Result<f64, MandelbrotError> {
+        if input_end - input_start == 0.0 {
+            return Err(MandelbrotError::DivideByZero);
+        }
+        Ok(output_start
+            + ((output_end - output_start) / (input_end - input_start)) * (input - input_start))
     }
 
     fn linear_interpolation(&self, v: &Color, u: &Color, a: f64) -> Color {
@@ -125,15 +129,17 @@ impl Mandelbrot {
             self.output_end,
             0 as f64,
             self.width as f64,
-        );
+        ).expect("Divide by 0 occured");
+
         let complex_j = Mandelbrot::map(
             j,
             self.output_start,
             self.output_end,
             0 as f64,
             self.height as f64,
-        );
+        ).expect("Divide by 0 occured");
 
+    
         let mut x0 = 0.0;
         let mut y0 = 0.0;
 
@@ -152,6 +158,7 @@ impl Mandelbrot {
         }
 
         return (x, y, n);
+
     }
 
     pub fn render(&mut self) {
