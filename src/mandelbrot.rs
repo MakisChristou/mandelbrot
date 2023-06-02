@@ -25,6 +25,57 @@ pub enum MandelbrotError{
     DivideByZero,
 }
 
+pub trait Renderable {
+    fn render(&mut self);
+}
+
+impl Renderable for Mandelbrot {
+    fn render(&mut self) {
+        let mut i = 0;
+        self.pixel_colours.clear();
+
+        while i < self.width {
+            self.pixel_colours.push(Vec::new());
+
+            let mut j = 0;
+
+            while j < self.height {
+                let mut c: (f64, f64) = (0.0, 0.0);
+
+                let mut n = 0;
+                let mut sum = 0;
+
+                let mut k: f64 = 0.0;
+
+                while k < 1.0 {
+                    let ii = i as f64 + k;
+                    let jj = j as f64 + k;
+
+                    let citerations = self.iterate_mandelbrot(ii, jj);
+
+                    n = citerations.2;
+                    c = (citerations.0, citerations.1);
+
+                    sum += n;
+
+                    k += 1.0 / (self.s_max as f64);
+                }
+
+                sum = sum / self.s_max;
+                n = sum;
+
+                let color = self.get_color(n);
+                self.pixel_colours[i as usize].push(color);
+
+                j += 1;
+            }
+
+            i += 1;
+        }
+    }
+}
+
+
 impl Mandelbrot {
     pub fn new(
         width: u32,
@@ -159,50 +210,6 @@ impl Mandelbrot {
 
         return (x, y, n);
 
-    }
-
-    pub fn render(&mut self) {
-        let mut i = 0;
-        self.pixel_colours.clear();
-
-        while i < self.width {
-            self.pixel_colours.push(Vec::new());
-
-            let mut j = 0;
-
-            while j < self.height {
-                let mut c: (f64, f64) = (0.0, 0.0);
-
-                let mut n = 0;
-                let mut sum = 0;
-
-                let mut k: f64 = 0.0;
-
-                while k < 1.0 {
-                    let ii = i as f64 + k;
-                    let jj = j as f64 + k;
-
-                    let citerations = self.iterate_mandelbrot(ii, jj);
-
-                    n = citerations.2;
-                    c = (citerations.0, citerations.1);
-
-                    sum += n;
-
-                    k += 1.0 / (self.s_max as f64);
-                }
-
-                sum = sum / self.s_max;
-                n = sum;
-
-                let color = self.get_color(n);
-                self.pixel_colours[i as usize].push(color);
-
-                j += 1;
-            }
-
-            i += 1;
-        }
     }
 
     pub fn write_ppm(&self) {
