@@ -12,17 +12,6 @@ impl Color {
     }
 }
 
-struct cIterations {
-    c: (f64, f64),
-    n: u32,
-}
-
-impl cIterations {
-    fn new(c: (f64, f64), n: u32) -> Self {
-        cIterations { c, n }
-    }
-}
-
 struct Mandelbrot {
     width: u32,
     height: u32,
@@ -122,7 +111,7 @@ impl Mandelbrot {
         c
     }
 
-    fn iterate_mandelbrot(&self, i: f64, j: f64) -> cIterations {
+    fn iterate_mandelbrot(&self, i: f64, j: f64) -> (f64, f64, u32) {
         let complex_i = Mandelbrot::map(
             i,
             self.output_start,
@@ -155,7 +144,7 @@ impl Mandelbrot {
             n += 1;
         }
 
-        return cIterations::new((x, y), n);
+        return (x, y, n);
     }
 
     fn render(&mut self) {
@@ -186,8 +175,8 @@ impl Mandelbrot {
 
                     let citerations = self.iterate_mandelbrot(ii, jj);
 
-                    n = citerations.n;
-                    c = citerations.c;
+                    n = citerations.2;
+                    c = (citerations.0, citerations.1);
 
                     sum += n;
 
@@ -202,8 +191,6 @@ impl Mandelbrot {
                 self.iteration_counts[i as usize].push(n);
                 self.iteration_values[i as usize].push(c);
                 self.pixel_colours[i as usize].push(color);
-
-                let color: &Color = &self.pixel_colours[i as usize][j as usize];
 
                 j += 1;
             }
