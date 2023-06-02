@@ -24,8 +24,6 @@ struct Mandelbrot {
     n_max: u32,
     s_max: u32,
 
-    iteration_counts: Vec<Vec<u32>>,
-    iteration_values: Vec<Vec<(f64, f64)>>,
     pixel_colours: Vec<Vec<Color>>,
     color_pallete: Vec<Color>,
 }
@@ -40,9 +38,6 @@ impl Mandelbrot {
         n_max: u32,
         s_max: u32,
     ) -> Self {
-        let iteration_counts: Vec<Vec<u32>> = vec![vec![]];
-        let iteration_values: Vec<Vec<(f64, f64)>> = vec![vec![]];
-
         let pixel_colours: Vec<Vec<Color>> = vec![vec![]];
 
         // Default color pallete
@@ -63,8 +58,6 @@ impl Mandelbrot {
             n_max,
             s_max,
 
-            iteration_counts,
-            iteration_values,
             pixel_colours,
             color_pallete,
         }
@@ -149,14 +142,9 @@ impl Mandelbrot {
 
     fn render(&mut self) {
         let mut i = 0;
-
-        self.iteration_counts.clear();
-        self.iteration_values.clear();
         self.pixel_colours.clear();
 
         while i < self.width {
-            self.iteration_counts.push(Vec::new());
-            self.iteration_values.push(Vec::new());
             self.pixel_colours.push(Vec::new());
 
             let mut j = 0;
@@ -187,9 +175,6 @@ impl Mandelbrot {
                 n = sum;
 
                 let color = self.get_color(n);
-
-                self.iteration_counts[i as usize].push(n);
-                self.iteration_values[i as usize].push(c);
                 self.pixel_colours[i as usize].push(color);
 
                 j += 1;
