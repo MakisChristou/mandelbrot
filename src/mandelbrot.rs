@@ -1,15 +1,17 @@
 use crate::color::Color;
 use itertools::Itertools;
 
+extern crate crossbeam;
+
 pub struct Mandelbrot {
-    width: u32,
-    height: u32,
+    width: usize,
+    height: usize,
     output_start: f64,
     output_end: f64,
     factor: f64,
     n_max: u32,
     s_max: u32,
-    pixel_colours: Vec<Vec<Color>>,
+    pixel_colours: Vec<Color>,
     color_pallete: Vec<Color>,
 }
 
@@ -29,11 +31,7 @@ pub trait Renderable {
 
 impl Renderable for Mandelbrot {
     fn render(&mut self) {
-        self.pixel_colours.clear();
-
-        for _i in 0..self.width {
-            self.pixel_colours.push(Vec::new());
-        }
+        self.pixel_colours = vec![Color::new(0,0,0); self.height * self.width];
 
         for (i, j) in (0..self.width).cartesian_product(0..self.height) {
             let mut n = 0;
@@ -56,15 +54,15 @@ impl Renderable for Mandelbrot {
             n = sum;
 
             let color = self.get_color(n);
-            self.pixel_colours[i as usize].push(color);
+            self.pixel_colours[j * self.height  + i] = color;
         }
     }
 }
 
 impl Mandelbrot {
     pub fn new(
-        width: u32,
-        height: u32,
+        width: usize,
+        height: usize,
         output_start: f64,
         output_end: f64,
         factor: f64,
@@ -87,7 +85,7 @@ impl Mandelbrot {
             return Err(MandelbrotError::InvalidAntiAliasing("Must be a power of 2"));
         }
 
-        let pixel_colours: Vec<Vec<Color>> = vec![vec![]];
+        let pixel_colours: Vec<Color> = vec![];
 
         // Default color pallete
         let color_pallete = vec![
@@ -152,7 +150,6 @@ impl Mandelbrot {
             c.G = 0;
             c.B = 0;
         }
-
         c
     }
 
@@ -202,7 +199,7 @@ impl Mandelbrot {
     pub fn write_ppm(&self) {
         print!("P3\n{} {}\n255\n", self.width, self.height);
         for (i, j) in (0..self.width).cartesian_product(0..self.height) {
-            let c = &self.pixel_colours[j as usize][i as usize];
+            let c = &self.pixel_colours[i*self.height + j];
             print!("{} {} {}\n", c.R, c.G, c.B);
         }
     }
@@ -210,7 +207,7 @@ impl Mandelbrot {
 
 #[cfg(test)]
 mod tests {
-    use super::{Mandelbrot, Renderable};
+    use super::{Mandelbrot};
     use crate::mandelbrot::MandelbrotError;
 
     #[test]
