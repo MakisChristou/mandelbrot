@@ -10,7 +10,7 @@ fn main() {
         Ok(mut mandelbrot) => {
             mandelbrot.render();
             mandelbrot.write_ppm();
-        },
+        }
         Err(e) => {
             println!("Mandelbrot failed to start with error {:?}", e);
         }

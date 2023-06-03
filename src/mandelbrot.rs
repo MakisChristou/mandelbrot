@@ -1,7 +1,5 @@
-use std::error::Error;
-
 use crate::color::Color;
-
+use itertools::Itertools;
 
 pub struct Mandelbrot {
     width: u32,
@@ -17,7 +15,7 @@ pub struct Mandelbrot {
 
 #[derive(Debug)]
 
-pub enum MandelbrotError{
+pub enum MandelbrotError {
     InvalidDimentions,
     InvalidRenderRange,
     InvalidIterations,
@@ -31,51 +29,37 @@ pub trait Renderable {
 
 impl Renderable for Mandelbrot {
     fn render(&mut self) {
-        let mut i = 0;
         self.pixel_colours.clear();
 
-        while i < self.width {
+        for _i in 0..self.width {
             self.pixel_colours.push(Vec::new());
+        }
 
-            let mut j = 0;
+        for (i, j) in (0..self.width).cartesian_product(0..self.height) {
+            let mut n = 0;
+            let mut sum = 0;
+            let mut k: f64 = 0.0;
 
-            while j < self.height {
-                let mut c: (f64, f64) = (0.0, 0.0);
+            while k < 1.0 {
+                let ii = i as f64 + k;
+                let jj = j as f64 + k;
 
-                let mut n = 0;
-                let mut sum = 0;
+                let coordinates = self.pixels_to_coordinates(ii, jj);
+                let citerations = self.iterate_mandelbrot(coordinates.0, coordinates.1);
 
-                let mut k: f64 = 0.0;
-
-                while k < 1.0 {
-                    let ii = i as f64 + k;
-                    let jj = j as f64 + k;
-                    
-                    let coordinates = self.pixels_to_coordinates(ii, jj);
-                    let citerations = self.iterate_mandelbrot(coordinates.0, coordinates.1);
-
-                    n = citerations.2;
-                    c = (citerations.0, citerations.1);
-
-                    sum += n;
-
-                    k += 1.0 / (self.s_max as f64);
-                }
-
-                sum = sum / self.s_max;
-                n = sum;
-
-                let color = self.get_color(n);
-                self.pixel_colours[i as usize].push(color);
-
-                j += 1;
+                n = citerations.2;
+                sum += n;
+                k += 1.0 / (self.s_max as f64);
             }
 
-            i += 1;
+            sum = sum / self.s_max;
+            n = sum;
+
+            let color = self.get_color(n);
+            self.pixel_colours[i as usize].push(color);
         }
     }
 }
-
 
 impl Mandelbrot {
     pub fn new(
@@ -86,8 +70,7 @@ impl Mandelbrot {
         factor: f64,
         n_max: u32,
         s_max: u32,
-    ) -> Result<Self, MandelbrotError>  {
-        
+    ) -> Result<Self, MandelbrotError> {
         if width != height {
             return Err(MandelbrotError::InvalidDimentions);
         }
@@ -96,14 +79,13 @@ impl Mandelbrot {
             return Err(MandelbrotError::InvalidRenderRange);
         }
 
-        if n_max <=0 {
+        if n_max <= 0 {
             return Err(MandelbrotError::InvalidIterations);
         }
 
-        if s_max <=0  || !s_max.is_power_of_two() {
-            return Err(MandelbrotError::InvalidAntiAliasing("Must be a power of 2"))
+        if s_max <= 0 || !s_max.is_power_of_two() {
+            return Err(MandelbrotError::InvalidAntiAliasing("Must be a power of 2"));
         }
-
 
         let pixel_colours: Vec<Vec<Color>> = vec![vec![]];
 
@@ -144,10 +126,6 @@ impl Mandelbrot {
             + ((output_end - output_start) / (input_end - input_start)) * (input - input_start))
     }
 
-    fn iterate_pixels(&self) -> impl Iterator<Item = (u32, u32)> + '_{
-        (0..self.width).flat_map(move |i| (0..self.height).map(move |j| (i, j)))
-    }
-
     fn linear_interpolation(&self, v: &Color, u: &Color, a: f64) -> Color {
         let b: f64 = 1.0 - a;
 
@@ -185,7 +163,8 @@ impl Mandelbrot {
             self.output_end,
             0 as f64,
             self.width as f64,
-        ).expect("Divide by 0 occured");
+        )
+        .expect("Divide by 0 occured");
 
         let complex_j = Mandelbrot::map(
             j,
@@ -193,13 +172,13 @@ impl Mandelbrot {
             self.output_end,
             0 as f64,
             self.height as f64,
-        ).expect("Divide by 0 occured");
+        )
+        .expect("Divide by 0 occured");
 
         (complex_i, complex_j)
     }
 
     fn iterate_mandelbrot(&self, complex_i: f64, complex_j: f64) -> (f64, f64, u32) {
-
         let mut x0 = 0.0;
         let mut y0 = 0.0;
 
@@ -218,26 +197,24 @@ impl Mandelbrot {
         }
 
         return (x, y, n);
-
     }
 
     pub fn write_ppm(&self) {
         print!("P3\n{} {}\n255\n", self.width, self.height);
-        for (i, j) in self.iterate_pixels() {
+        for (i, j) in (0..self.width).cartesian_product(0..self.height) {
             let c = &self.pixel_colours[j as usize][i as usize];
             print!("{} {} {}\n", c.R, c.G, c.B);
-        };
+        }
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use crate::mandelbrot::MandelbrotError;
     use super::{Mandelbrot, Renderable};
+    use crate::mandelbrot::MandelbrotError;
 
     #[test]
-    fn should_instantiate_mandelbrot(){
+    fn should_instantiate_mandelbrot() {
         let mandelbrot = Mandelbrot::new(1000, 1000, -2.0, 2.0, 1.0, 64, 4);
         assert!(mandelbrot.is_ok());
     }
@@ -245,54 +222,67 @@ mod tests {
     #[test]
     fn width_equal_to_height() {
         let mandelbrot = Mandelbrot::new(640, 480, -2.0, 2.0, 1.0, 64, 4);
-        assert!(matches!(mandelbrot, Err(MandelbrotError::InvalidDimentions)));
+        assert!(matches!(
+            mandelbrot,
+            Err(MandelbrotError::InvalidDimentions)
+        ));
     }
 
     #[test]
-    fn start_before_end(){
+    fn start_before_end() {
         let mandelbrot = Mandelbrot::new(1000, 1000, 2.0, -2.0, 1.0, 64, 4);
-        assert!(matches!(mandelbrot, Err(MandelbrotError::InvalidRenderRange)));
+        assert!(matches!(
+            mandelbrot,
+            Err(MandelbrotError::InvalidRenderRange)
+        ));
     }
 
     #[test]
-    fn valid_iterations(){
+    fn valid_iterations() {
         let mandelbrot = Mandelbrot::new(1000, 1000, -2.0, 2.0, 1.0, 0, 4);
-        assert!(matches!(mandelbrot, Err(MandelbrotError::InvalidIterations)));
+        assert!(matches!(
+            mandelbrot,
+            Err(MandelbrotError::InvalidIterations)
+        ));
     }
 
     #[test]
-    fn valid_anti_aliasing(){
+    fn valid_anti_aliasing() {
         let mandelbrot = Mandelbrot::new(1000, 1000, -2.0, 2.0, 1.0, 64, 5);
-        assert!(matches!(mandelbrot, Err(MandelbrotError::InvalidAntiAliasing("Must be a power of 2"))));
+        assert!(matches!(
+            mandelbrot,
+            Err(MandelbrotError::InvalidAntiAliasing("Must be a power of 2"))
+        ));
     }
 
     #[test]
-    fn does_not_diverge_to_infinity_at_zero(){
-
+    fn does_not_diverge_to_infinity_at_zero() {
         let n_max = 64;
         let mandelbrot = Mandelbrot::new(1000, 1000, -2.0, 2.0, 1.0, n_max, 4);
-        
+
         match mandelbrot {
-            Ok(mut mandelbrot) =>  {
+            Ok(mut mandelbrot) => {
                 let iterations = mandelbrot.iterate_mandelbrot(0.0, 0.0);
                 assert_eq!(iterations.2, n_max)
-            },
-            Err(_) => {assert!(false)}
+            }
+            Err(_) => {
+                assert!(false)
+            }
         }
     }
 
     #[test]
-    fn diverges_to_infinity_at_known_point(){
-
+    fn diverges_to_infinity_at_known_point() {
         let mandelbrot = Mandelbrot::new(1000, 1000, -2.0, 2.0, 1.0, 64, 4);
-        
+
         match mandelbrot {
-            Ok(mut mandelbrot) =>  {
+            Ok(mut mandelbrot) => {
                 let iterations = mandelbrot.iterate_mandelbrot(-100.0, 0.0);
                 assert_eq!(iterations.2, 1)
-            },
-            Err(_) => {assert!(false)}
+            }
+            Err(_) => {
+                assert!(false)
+            }
         }
     }
-
 }
