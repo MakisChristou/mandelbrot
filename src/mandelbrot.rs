@@ -127,9 +127,9 @@ impl Mandelbrot {
     fn linear_interpolation(&self, v: &Color, u: &Color, a: f64) -> Color {
         let b: f64 = 1.0 - a;
 
-        let R = (b * (v.R as f64) + a * (u.R as f64)) as u32;
-        let G = (b * (v.G as f64) + a * (u.G as f64)) as u32;
-        let B = (b * (v.B as f64) + a * (u.B as f64)) as u32;
+        let R = (b * (v.R as f64) + a * (u.R as f64)) as u8;
+        let G = (b * (v.G as f64) + a * (u.G as f64)) as u8;
+        let B = (b * (v.B as f64) + a * (u.B as f64)) as u8;
 
         Color::new(R, G, B)
     }
