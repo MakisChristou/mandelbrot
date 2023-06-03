@@ -144,6 +144,10 @@ impl Mandelbrot {
             + ((output_end - output_start) / (input_end - input_start)) * (input - input_start))
     }
 
+    fn iterate_pixels(&self) -> impl Iterator<Item = (u32, u32)> + '_{
+        (0..self.width).flat_map(move |i| (0..self.height).map(move |j| (i, j)))
+    }
+
     fn linear_interpolation(&self, v: &Color, u: &Color, a: f64) -> Color {
         let b: f64 = 1.0 - a;
 
@@ -219,23 +223,10 @@ impl Mandelbrot {
 
     pub fn write_ppm(&self) {
         print!("P3\n{} {}\n255\n", self.width, self.height);
-
-        let mut i: u32 = 0;
-        let mut j: u32 = 0;
-
-        let mut count = 0;
-
-        while j < self.height as u32 {
-            i = 0;
-            while i < self.width as u32 {
-                count += 1;
-
-                let c = &self.pixel_colours[i as usize][j as usize];
-                print!("{} {} {}\n", c.R, c.G, c.B);
-                i += 1;
-            }
-            j += 1;
-        }
+        for (i, j) in self.iterate_pixels() {
+            let c = &self.pixel_colours[j as usize][i as usize];
+            print!("{} {} {}\n", c.R, c.G, c.B);
+        };
     }
 }
 
@@ -292,7 +283,7 @@ mod tests {
 
     #[test]
     fn diverges_to_infinity_at_known_point(){
-        
+
         let mandelbrot = Mandelbrot::new(1000, 1000, -2.0, 2.0, 1.0, 64, 4);
         
         match mandelbrot {
