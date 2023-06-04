@@ -1,8 +1,11 @@
+use std::usize;
+
 use crate::color::Color;
 use itertools::Itertools;
 
-extern crate crossbeam;
+use std::thread;
 
+#[derive(Clone)]
 pub struct Mandelbrot {
     width: usize,
     height: usize,
@@ -27,34 +30,42 @@ pub enum MandelbrotError {
 
 pub trait Renderable {
     fn render(&mut self);
+    fn parallel_render(&mut self, threads: Option<usize>);
 }
 
 impl Renderable for Mandelbrot {
     fn render(&mut self) {
-        self.pixel_colours = vec![Color::new(0,0,0); self.height * self.width];
+        self.pixel_colours = vec![Color::new(0, 0, 0); self.height * self.width];
 
         for (i, j) in (0..self.width).cartesian_product(0..self.height) {
-            let mut n = 0;
-            let mut sum = 0;
-            let mut k: f64 = 0.0;
+            self.pixel_colours[j * self.height + i] = self.colorize_pixel(i, j);
+        }
+    }
 
-            while k < 1.0 {
-                let ii = i as f64 + k;
-                let jj = j as f64 + k;
+    fn parallel_render(&mut self, threads: Option<usize>) {
+        let mut cpus = num_cpus::get();
 
-                let coordinates = self.pixels_to_coordinates(ii, jj);
-                let citerations = self.iterate_mandelbrot(coordinates.0, coordinates.1);
+        if let Some(threads) = threads {
+            cpus = threads;
+        }
 
-                n = citerations.2;
-                sum += n;
-                k += 1.0 / (self.s_max as f64);
-            }
+        let mut handlers = Vec::new();
+        let ranges = self.split_pixels(cpus);
 
-            sum = sum / self.s_max;
-            n = sum;
+        // Split pixel_colors into ranges
+        for (l, h) in ranges {
+            // Clone whole mandelbrot for now
+            let cloned_self = self.clone();
 
-            let color = self.get_color(n);
-            self.pixel_colours[j * self.height  + i] = color;
+            let handler = thread::spawn(move || cloned_self.render_band(l, h));
+            handlers.push(handler);
+        }
+
+        self.pixel_colours = vec![];
+
+        for handler in handlers {
+            let mut render_slice = handler.join().unwrap();
+            self.pixel_colours.append(&mut render_slice);
         }
     }
 }
@@ -77,11 +88,11 @@ impl Mandelbrot {
             return Err(MandelbrotError::InvalidRenderRange);
         }
 
-        if n_max <= 0 {
+        if n_max == 0 {
             return Err(MandelbrotError::InvalidIterations);
         }
 
-        if s_max <= 0 || !s_max.is_power_of_two() {
+        if s_max == 0 || !s_max.is_power_of_two() {
             return Err(MandelbrotError::InvalidAntiAliasing("Must be a power of 2"));
         }
 
@@ -124,31 +135,80 @@ impl Mandelbrot {
             + ((output_end - output_start) / (input_end - input_start)) * (input - input_start))
     }
 
+    fn render_band(&self, start: usize, end: usize) -> Vec<Color> {
+        let mut local_render: Vec<Color> = Vec::new();
+
+        for k in start..end {
+            let i = k % self.width;
+            let j = k / self.width;
+
+            local_render.push(self.colorize_pixel(i, j));
+        }
+
+        local_render
+    }
+
+    fn split_pixels(&self, threads: usize) -> Vec<(usize, usize)> {
+        let mut ranges = Vec::new();
+
+        for i in 0..threads {
+            let lower_bound = i * self.width * self.height / threads;
+            let upper_bound = (i + 1) * self.width * self.height / threads;
+
+            ranges.push((lower_bound, upper_bound));
+        }
+
+        ranges
+    }
+
     fn linear_interpolation(&self, v: &Color, u: &Color, a: f64) -> Color {
         let b: f64 = 1.0 - a;
 
-        let R = (b * (v.R as f64) + a * (u.R as f64)) as u8;
-        let G = (b * (v.G as f64) + a * (u.G as f64)) as u8;
-        let B = (b * (v.B as f64) + a * (u.B as f64)) as u8;
+        let r = (b * (v.r as f64) + a * (u.r as f64)) as u8;
+        let g = (b * (v.g as f64) + a * (u.g as f64)) as u8;
+        let b = (b * (v.b as f64) + a * (u.b as f64)) as u8;
 
-        Color::new(R, G, B)
+        Color::new(r, g, b)
+    }
+
+    fn colorize_pixel(&self, i: usize, j: usize) -> Color {
+        let mut n;
+        let mut sum = 0;
+        let mut k: f64 = 0.0;
+
+        while k < 1.0 {
+            let ii = i as f64 + k;
+            let jj = j as f64 + k;
+
+            let coordinates = self.pixels_to_coordinates(ii, jj);
+            let citerations = self.iterate_mandelbrot(coordinates.0, coordinates.1);
+
+            n = citerations.2;
+            sum += n;
+            k += 1.0 / (self.s_max as f64);
+        }
+
+        sum /= self.s_max;
+        n = sum;
+
+        self.get_color(n)
     }
 
     fn get_color(&self, iter: u32) -> Color {
         // Stolen Code from https://github.com/sevity/mandelbrot
-        let MAX_COLOR: usize = self.color_pallete.len() - 1;
+        let max_color: usize = self.color_pallete.len() - 1;
         let mu = (iter as f64) / self.n_max as f64;
         //scale mu to be in the range of colors
-        let mu = mu * MAX_COLOR as f64;
+        let mu = mu * max_color as f64;
         let i_mu = mu as usize;
         let color1 = &self.color_pallete[i_mu];
-        let color2 = &self.color_pallete[std::cmp::min(i_mu + 1, MAX_COLOR)];
+        let color2 = &self.color_pallete[std::cmp::min(i_mu + 1, max_color)];
         let mut c = self.linear_interpolation(color1, color2, mu - i_mu as f64);
 
         if iter == self.n_max {
-            c.R = 0;
-            c.G = 0;
-            c.B = 0;
+            c.r = 0;
+            c.g = 0;
+            c.b = 0;
         }
         c
     }
@@ -193,21 +253,21 @@ impl Mandelbrot {
             n += 1;
         }
 
-        return (x, y, n);
+        (x, y, n)
     }
 
     pub fn write_ppm(&self) {
         print!("P3\n{} {}\n255\n", self.width, self.height);
         for (i, j) in (0..self.width).cartesian_product(0..self.height) {
-            let c = &self.pixel_colours[i*self.height + j];
-            print!("{} {} {}\n", c.R, c.G, c.B);
+            let c = &self.pixel_colours[i * self.height + j];
+            println!("{} {} {}", c.r, c.g, c.b);
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Mandelbrot};
+    use super::Mandelbrot;
     use crate::mandelbrot::MandelbrotError;
 
     #[test]
