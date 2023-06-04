@@ -2,6 +2,7 @@ use std::usize;
 
 use crate::color::Color;
 use itertools::Itertools;
+use num::Complex;
 
 use std::thread;
 
@@ -181,7 +182,7 @@ impl Mandelbrot {
             let jj = j as f64 + k;
 
             let coordinates = self.pixels_to_coordinates(ii, jj);
-            let citerations = self.iterate_mandelbrot(coordinates.0, coordinates.1);
+            let citerations = self.iterate_mandelbrot(coordinates);
 
             n = citerations.2;
             sum += n;
@@ -213,7 +214,7 @@ impl Mandelbrot {
         c
     }
 
-    fn pixels_to_coordinates(&self, i: f64, j: f64) -> (f64, f64) {
+    fn pixels_to_coordinates(&self, i: f64, j: f64) -> Complex<f64> {
         let complex_i = Mandelbrot::map(
             i,
             self.output_start,
@@ -232,10 +233,10 @@ impl Mandelbrot {
         )
         .expect("Divide by 0 occured");
 
-        (complex_i, complex_j)
+        Complex{re: complex_i, im: complex_j}
     }
 
-    fn iterate_mandelbrot(&self, complex_i: f64, complex_j: f64) -> (f64, f64, u32) {
+    fn iterate_mandelbrot(&self, complex: Complex<f64>) -> (f64, f64, u32) {
         let mut x0 = 0.0;
         let mut y0 = 0.0;
 
@@ -245,8 +246,8 @@ impl Mandelbrot {
         let mut n: u32 = 0;
 
         while x * x + y * y <= 4.0 && n < self.n_max {
-            x = x0 * x0 - y0 * y0 + complex_i;
-            y = 2.0 * x0 * y0 + complex_j;
+            x = x0 * x0 - y0 * y0 + complex.re;
+            y = 2.0 * x0 * y0 + complex.im;
 
             x0 = x;
             y0 = y;
@@ -267,6 +268,8 @@ impl Mandelbrot {
 
 #[cfg(test)]
 mod tests {
+    use num::Complex;
+
     use super::Mandelbrot;
     use crate::mandelbrot::MandelbrotError;
 
@@ -319,7 +322,7 @@ mod tests {
 
         match mandelbrot {
             Ok(mut mandelbrot) => {
-                let iterations = mandelbrot.iterate_mandelbrot(0.0, 0.0);
+                let iterations = mandelbrot.iterate_mandelbrot(Complex{re: 0.0, im: 0.0});
                 assert_eq!(iterations.2, n_max)
             }
             Err(_) => {
@@ -334,7 +337,7 @@ mod tests {
 
         match mandelbrot {
             Ok(mut mandelbrot) => {
-                let iterations = mandelbrot.iterate_mandelbrot(-100.0, 0.0);
+                let iterations = mandelbrot.iterate_mandelbrot(Complex{re: -100.0, im: 0.0});
                 assert_eq!(iterations.2, 1)
             }
             Err(_) => {
