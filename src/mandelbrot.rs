@@ -1,14 +1,14 @@
-use std::usize;
+use crate::color;
 use crate::color::Color;
 use image::ImageError;
 use itertools::Itertools;
 use num::Complex;
 use std::thread;
+use std::usize;
 
 use image::ColorType;
 use image::ImageEncoder;
 use std::fs::File;
-
 
 #[derive(Clone)]
 pub struct Mandelbrot {
@@ -84,6 +84,7 @@ impl Mandelbrot {
         factor: f64,
         n_max: u32,
         s_max: u32,
+        color_pallete: Option<Vec<Color>>,
     ) -> Result<Self, MandelbrotError> {
         if width != height {
             return Err(MandelbrotError::InvalidDimentions);
@@ -104,13 +105,27 @@ impl Mandelbrot {
         let pixel_colours: Vec<Color> = vec![];
 
         // Default color pallete
-        let color_pallete = vec![
+        let default_color_pallete = vec![
             Color::new(0, 7, 100),
             Color::new(32, 107, 203),
             Color::new(237, 255, 255),
             Color::new(255, 170, 0),
             Color::new(0, 2, 0),
         ];
+
+        if let Some(color_pallete) = color_pallete {
+            return Ok(Mandelbrot {
+                width,
+                height,
+                output_start,
+                output_end,
+                factor,
+                n_max,
+                s_max,
+                pixel_colours,
+                color_pallete,
+            });
+        }
 
         Ok(Mandelbrot {
             width,
@@ -121,7 +136,7 @@ impl Mandelbrot {
             n_max,
             s_max,
             pixel_colours,
-            color_pallete,
+            color_pallete: default_color_pallete,
         })
     }
 
@@ -236,7 +251,10 @@ impl Mandelbrot {
         )
         .expect("Divide by 0 occured");
 
-        Complex{re: complex_i, im: complex_j}
+        Complex {
+            re: complex_i,
+            im: complex_j,
+        }
     }
 
     fn iterate_mandelbrot(&self, complex: Complex<f64>) -> (f64, f64, u32) {
@@ -260,9 +278,9 @@ impl Mandelbrot {
         (x, y, n)
     }
 
-    pub fn save_image(&self, file_path: &str) -> Result<(), ImageError>{
+    pub fn save_image(&self, file_path: &str) -> Result<(), ImageError> {
         let mut imgbuf = image::ImageBuffer::new(self.width as u32, self.height as u32);
-        
+
         // Iterate over the coordinates and pixels of the image
         for (x, y, pixel) in imgbuf.enumerate_pixels_mut() {
             let c = &self.pixel_colours[y as usize * self.height + x as usize];
@@ -283,20 +301,19 @@ impl Mandelbrot {
 
 #[cfg(test)]
 mod tests {
-    use num::Complex;
-
     use super::Mandelbrot;
-    use crate::mandelbrot::MandelbrotError;
+    use crate::{color::Color, mandelbrot::MandelbrotError};
+    use num::Complex;
 
     #[test]
     fn should_instantiate_mandelbrot() {
-        let mandelbrot = Mandelbrot::new(1000, 1000, -2.0, 2.0, 1.0, 64, 4);
+        let mandelbrot = Mandelbrot::new(1000, 1000, -2.0, 2.0, 1.0, 64, 4, None);
         assert!(mandelbrot.is_ok());
     }
 
     #[test]
     fn width_equal_to_height() {
-        let mandelbrot = Mandelbrot::new(640, 480, -2.0, 2.0, 1.0, 64, 4);
+        let mandelbrot = Mandelbrot::new(640, 480, -2.0, 2.0, 1.0, 64, 4, None);
         assert!(matches!(
             mandelbrot,
             Err(MandelbrotError::InvalidDimentions)
@@ -305,7 +322,7 @@ mod tests {
 
     #[test]
     fn start_before_end() {
-        let mandelbrot = Mandelbrot::new(1000, 1000, 2.0, -2.0, 1.0, 64, 4);
+        let mandelbrot = Mandelbrot::new(1000, 1000, 2.0, -2.0, 1.0, 64, 4, None);
         assert!(matches!(
             mandelbrot,
             Err(MandelbrotError::InvalidRenderRange)
@@ -314,7 +331,7 @@ mod tests {
 
     #[test]
     fn valid_iterations() {
-        let mandelbrot = Mandelbrot::new(1000, 1000, -2.0, 2.0, 1.0, 0, 4);
+        let mandelbrot = Mandelbrot::new(1000, 1000, -2.0, 2.0, 1.0, 0, 4, None);
         assert!(matches!(
             mandelbrot,
             Err(MandelbrotError::InvalidIterations)
@@ -323,7 +340,7 @@ mod tests {
 
     #[test]
     fn valid_anti_aliasing() {
-        let mandelbrot = Mandelbrot::new(1000, 1000, -2.0, 2.0, 1.0, 64, 5);
+        let mandelbrot = Mandelbrot::new(1000, 1000, -2.0, 2.0, 1.0, 64, 5, None);
         assert!(matches!(
             mandelbrot,
             Err(MandelbrotError::InvalidAntiAliasing("Must be a power of 2"))
@@ -333,11 +350,11 @@ mod tests {
     #[test]
     fn does_not_diverge_to_infinity_at_zero() {
         let n_max = 64;
-        let mandelbrot = Mandelbrot::new(1000, 1000, -2.0, 2.0, 1.0, n_max, 4);
+        let mandelbrot = Mandelbrot::new(1000, 1000, -2.0, 2.0, 1.0, n_max, 4, None);
 
         match mandelbrot {
-            Ok(mut mandelbrot) => {
-                let iterations = mandelbrot.iterate_mandelbrot(Complex{re: 0.0, im: 0.0});
+            Ok(mandelbrot) => {
+                let iterations = mandelbrot.iterate_mandelbrot(Complex { re: 0.0, im: 0.0 });
                 assert_eq!(iterations.2, n_max)
             }
             Err(_) => {
@@ -348,16 +365,54 @@ mod tests {
 
     #[test]
     fn diverges_to_infinity_at_known_point() {
-        let mandelbrot = Mandelbrot::new(1000, 1000, -2.0, 2.0, 1.0, 64, 4);
+        let mandelbrot = Mandelbrot::new(1000, 1000, -2.0, 2.0, 1.0, 64, 4, None);
 
         match mandelbrot {
-            Ok(mut mandelbrot) => {
-                let iterations = mandelbrot.iterate_mandelbrot(Complex{re: -100.0, im: 0.0});
+            Ok(mandelbrot) => {
+                let iterations = mandelbrot.iterate_mandelbrot(Complex {
+                    re: -100.0,
+                    im: 0.0,
+                });
                 assert_eq!(iterations.2, 1)
             }
             Err(_) => {
                 assert!(false)
             }
         }
+    }
+
+    #[test]
+    fn custom_and_default_color_palette() {
+        let mandelbrot = Mandelbrot::new(1000, 1000, -2.0, 2.0, 1.0, 64, 4, None);
+
+        let vibrant_color_palette = vec![
+            Color::new(66, 30, 15),    // Dark brown
+            Color::new(25, 7, 26),     // Dark purple
+            Color::new(9, 1, 47),      // Deep blue
+            Color::new(4, 4, 73),      // Blue
+            Color::new(0, 7, 100),     // Lighter blue
+            Color::new(12, 44, 138),   // Blue-Indigo
+            Color::new(24, 82, 177),   // Sky Blue
+            Color::new(57, 125, 209),  // Light Blue
+            Color::new(134, 181, 229), // Lighter Blue
+            Color::new(211, 236, 248), // Very light blue
+            Color::new(241, 233, 191), // Cream
+            Color::new(248, 201, 95),  // Yellow
+            Color::new(255, 170, 0),   // Orange
+            Color::new(204, 128, 0),   // Dark Orange
+            Color::new(153, 87, 0),    // Darker Orange
+            Color::new(106, 52, 3),    // Even darker orange
+        ];
+
+        let mandelbrot = Mandelbrot::new(
+            1000,
+            1000,
+            -2.0,
+            2.0,
+            1.0,
+            64,
+            4,
+            Some(vibrant_color_palette),
+        );
     }
 }
