@@ -10,10 +10,16 @@ fn main() {
         Ok(mut mandelbrot) => {
             // mandelbrot.parallel_render(Some(10));
             mandelbrot.render();
-            mandelbrot.write_ppm();
+            // mandelbrot.write_ppm();
+            match mandelbrot.save_image("fractal.png") {
+                Ok(()) => {},
+                Err(e) => {
+                    panic!("Image failed to be saved {:?}", e)
+                }
+            }
         }
         Err(e) => {
-            println!("Mandelbrot failed to start with error {:?}", e);
+            panic!("Mandelbrot failed to start with error {:?}", e);
         }
     }
 }

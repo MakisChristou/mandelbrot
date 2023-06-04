@@ -1,10 +1,14 @@
 use std::usize;
-
 use crate::color::Color;
+use image::ImageError;
 use itertools::Itertools;
 use num::Complex;
-
 use std::thread;
+
+use image::ColorType;
+use image::ImageEncoder;
+use std::fs::File;
+
 
 #[derive(Clone)]
 pub struct Mandelbrot {
@@ -116,7 +120,6 @@ impl Mandelbrot {
             factor,
             n_max,
             s_max,
-
             pixel_colours,
             color_pallete,
         })
@@ -255,6 +258,18 @@ impl Mandelbrot {
         }
 
         (x, y, n)
+    }
+
+    pub fn save_image(&self, file_path: &str) -> Result<(), ImageError>{
+        let mut imgbuf = image::ImageBuffer::new(self.width as u32, self.height as u32);
+        
+        // Iterate over the coordinates and pixels of the image
+        for (x, y, pixel) in imgbuf.enumerate_pixels_mut() {
+            let c = &self.pixel_colours[y as usize * self.height + x as usize];
+            *pixel = image::Rgb([c.r, c.g, c.b]);
+        }
+
+        imgbuf.save(file_path)
     }
 
     pub fn write_ppm(&self) {
