@@ -1,5 +1,5 @@
-use std::{str::FromStr, fmt};
 use clap::Parser;
+use std::{fmt, str::FromStr};
 
 #[derive(Debug, Clone)]
 pub struct Bounds {
@@ -18,15 +18,17 @@ impl FromStr for Bounds {
             return Err("Invalid Bounds");
         }
 
-        let output_start = parts[0].parse::<f64>().map_err(|_| "Cannot parse start bound")?;
-        let output_end = parts[1].parse::<f64>().map_err(|_| "Cannot parse end bound")?;
+        let output_start = parts[0]
+            .parse::<f64>()
+            .map_err(|_| "Cannot parse start bound")?;
+        let output_end = parts[1]
+            .parse::<f64>()
+            .map_err(|_| "Cannot parse end bound")?;
 
-        Ok(
-            Bounds{
-                output_start,
-                output_end,
-            }
-        )
+        Ok(Bounds {
+            output_start,
+            output_end,
+        })
     }
 }
 
@@ -40,11 +42,11 @@ impl fmt::Display for Bounds {
 /// Simple mandelbrot fractal renderer
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
-pub struct Args{
+pub struct Args {
     /// Output image path
     #[arg(short, long, default_value_t = String::from("fractal.png"))]
     pub file_path: String,
-    
+
     /// Output image width
     #[arg(long, default_value_t = 1000)]
     pub width: usize,
@@ -64,5 +66,4 @@ pub struct Args{
     /// Anti-aliasing
     #[arg(short, long, default_value_t = 4)]
     pub s_max: u32,
-    
 }

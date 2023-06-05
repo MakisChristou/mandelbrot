@@ -1,5 +1,5 @@
-use crate::color;
 use crate::color::Color;
+use crate::config::Config;
 use image::ImageError;
 use itertools::Itertools;
 use num::Complex;
@@ -72,29 +72,20 @@ impl Renderable for Mandelbrot {
 }
 
 impl Mandelbrot {
-    pub fn new(
-        width: usize,
-        height: usize,
-        output_start: f64,
-        output_end: f64,
-        factor: f64,
-        n_max: u32,
-        s_max: u32,
-        color_pallete: Option<Vec<Color>>,
-    ) -> Result<Self, MandelbrotError> {
-        if width != height {
+    pub fn new(config: Config) -> Result<Self, MandelbrotError> {
+        if config.width != config.height {
             return Err(MandelbrotError::InvalidDimentions);
         }
 
-        if output_start >= output_end {
+        if config.bounds.output_start >= config.bounds.output_end {
             return Err(MandelbrotError::InvalidRenderRange);
         }
 
-        if n_max == 0 {
+        if config.n_max == 0 {
             return Err(MandelbrotError::InvalidIterations);
         }
 
-        if s_max == 0 || !s_max.is_power_of_two() {
+        if config.s_max == 0 || !config.s_max.is_power_of_two() {
             return Err(MandelbrotError::InvalidAntiAliasing("Must be a power of 2"));
         }
 
@@ -109,28 +100,28 @@ impl Mandelbrot {
             Color::new(0, 2, 0),
         ];
 
-        if let Some(color_pallete) = color_pallete {
+        if let Some(color_pallete) = config.color_pallete {
             return Ok(Mandelbrot {
-                width,
-                height,
-                output_start,
-                output_end,
-                factor,
-                n_max,
-                s_max,
+                width: config.width,
+                height: config.height,
+                output_start: config.bounds.output_start,
+                output_end: config.bounds.output_end,
+                factor: config.factor,
+                n_max: config.n_max,
+                s_max: config.s_max,
                 pixel_colours,
                 color_pallete,
             });
         }
 
         Ok(Mandelbrot {
-            width,
-            height,
-            output_start,
-            output_end,
-            factor,
-            n_max,
-            s_max,
+            width: config.width,
+            height: config.height,
+            output_start: config.bounds.output_start,
+            output_end: config.bounds.output_end,
+            factor: config.factor,
+            n_max: config.n_max,
+            s_max: config.s_max,
             pixel_colours,
             color_pallete: default_color_pallete,
         })
@@ -298,18 +289,40 @@ impl Mandelbrot {
 #[cfg(test)]
 mod tests {
     use super::Mandelbrot;
-    use crate::{color::Color, mandelbrot::MandelbrotError};
+    use crate::{args::Bounds, color::Color, config::Config, mandelbrot::MandelbrotError};
     use num::Complex;
 
     #[test]
     fn should_instantiate_mandelbrot() {
-        let mandelbrot = Mandelbrot::new(1000, 1000, -2.0, 2.0, 1.0, 64, 4, None);
+        let mandelbrot = Mandelbrot::new(Config {
+            width: 1000,
+            height: 1000,
+            bounds: Bounds {
+                output_start: -2.0,
+                output_end: 2.0,
+            },
+            factor: 1.0,
+            n_max: 64,
+            s_max: 4,
+            color_pallete: None,
+        });
         assert!(mandelbrot.is_ok());
     }
 
     #[test]
     fn width_equal_to_height() {
-        let mandelbrot = Mandelbrot::new(640, 480, -2.0, 2.0, 1.0, 64, 4, None);
+        let mandelbrot = Mandelbrot::new(Config {
+            width: 640,
+            height: 480,
+            bounds: Bounds {
+                output_start: -2.0,
+                output_end: 2.0,
+            },
+            factor: 1.0,
+            n_max: 64,
+            s_max: 4,
+            color_pallete: None,
+        });
         assert!(matches!(
             mandelbrot,
             Err(MandelbrotError::InvalidDimentions)
@@ -318,7 +331,18 @@ mod tests {
 
     #[test]
     fn start_before_end() {
-        let mandelbrot = Mandelbrot::new(1000, 1000, 2.0, -2.0, 1.0, 64, 4, None);
+        let mandelbrot = Mandelbrot::new(Config {
+            width: 1000,
+            height: 1000,
+            bounds: Bounds {
+                output_start: 2.0,
+                output_end: -2.0,
+            },
+            factor: 1.0,
+            n_max: 64,
+            s_max: 4,
+            color_pallete: None,
+        });
         assert!(matches!(
             mandelbrot,
             Err(MandelbrotError::InvalidRenderRange)
@@ -327,7 +351,18 @@ mod tests {
 
     #[test]
     fn valid_iterations() {
-        let mandelbrot = Mandelbrot::new(1000, 1000, -2.0, 2.0, 1.0, 0, 4, None);
+        let mandelbrot = Mandelbrot::new(Config {
+            width: 1000,
+            height: 1000,
+            bounds: Bounds {
+                output_start: -2.0,
+                output_end: 2.0,
+            },
+            factor: 1.0,
+            n_max: 0,
+            s_max: 4,
+            color_pallete: None,
+        });
         assert!(matches!(
             mandelbrot,
             Err(MandelbrotError::InvalidIterations)
@@ -336,7 +371,18 @@ mod tests {
 
     #[test]
     fn valid_anti_aliasing() {
-        let mandelbrot = Mandelbrot::new(1000, 1000, -2.0, 2.0, 1.0, 64, 5, None);
+        let mandelbrot = Mandelbrot::new(Config {
+            width: 1000,
+            height: 1000,
+            bounds: Bounds {
+                output_start: -2.0,
+                output_end: 2.0,
+            },
+            factor: 1.0,
+            n_max: 64,
+            s_max: 5,
+            color_pallete: None,
+        });
         assert!(matches!(
             mandelbrot,
             Err(MandelbrotError::InvalidAntiAliasing("Must be a power of 2"))
@@ -346,7 +392,18 @@ mod tests {
     #[test]
     fn does_not_diverge_to_infinity_at_zero() {
         let n_max = 64;
-        let mandelbrot = Mandelbrot::new(1000, 1000, -2.0, 2.0, 1.0, n_max, 4, None);
+        let mandelbrot = Mandelbrot::new(Config {
+            width: 1000,
+            height: 1000,
+            bounds: Bounds {
+                output_start: -2.0,
+                output_end: 2.0,
+            },
+            factor: 1.0,
+            n_max: n_max,
+            s_max: 4,
+            color_pallete: None,
+        });
 
         match mandelbrot {
             Ok(mandelbrot) => {
@@ -361,7 +418,18 @@ mod tests {
 
     #[test]
     fn diverges_to_infinity_at_known_point() {
-        let mandelbrot = Mandelbrot::new(1000, 1000, -2.0, 2.0, 1.0, 64, 4, None);
+        let mandelbrot = Mandelbrot::new(Config {
+            width: 1000,
+            height: 1000,
+            bounds: Bounds {
+                output_start: -2.0,
+                output_end: 2.0,
+            },
+            factor: 1.0,
+            n_max: 64,
+            s_max: 4,
+            color_pallete: None,
+        });
 
         match mandelbrot {
             Ok(mandelbrot) => {
@@ -379,7 +447,18 @@ mod tests {
 
     #[test]
     fn custom_and_default_color_palette() {
-        let mandelbrot = Mandelbrot::new(1000, 1000, -2.0, 2.0, 1.0, 64, 4, None);
+        let mandelbrot = Mandelbrot::new(Config {
+            width: 1000,
+            height: 1000,
+            bounds: Bounds {
+                output_start: -2.0,
+                output_end: 2.0,
+            },
+            factor: 1.0,
+            n_max: 64,
+            s_max: 4,
+            color_pallete: None,
+        });
 
         let vibrant_color_palette = vec![
             Color::new(66, 30, 15),    // Dark brown
@@ -400,15 +479,17 @@ mod tests {
             Color::new(106, 52, 3),    // Even darker orange
         ];
 
-        let mandelbrot = Mandelbrot::new(
-            1000,
-            1000,
-            -2.0,
-            2.0,
-            1.0,
-            64,
-            4,
-            Some(vibrant_color_palette),
-        );
+        let mandelbrot = Mandelbrot::new(Config {
+            width: 1000,
+            height: 1000,
+            bounds: Bounds {
+                output_start: -2.0,
+                output_end: 2.0,
+            },
+            factor: 1.0,
+            n_max: 64,
+            s_max: 4,
+            color_pallete: Some(vibrant_color_palette),
+        });
     }
 }

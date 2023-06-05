@@ -1,18 +1,17 @@
-pub mod color;
-pub mod mandelbrot;
 pub mod args;
+pub mod color;
+pub mod config;
+pub mod mandelbrot;
 
-
-use core::panic;
-use std::process;
+use crate::mandelbrot::Mandelbrot;
+use crate::mandelbrot::Renderable;
 use args::Args;
 use clap::Parser;
 use color::Color;
-use crate::mandelbrot::Mandelbrot;
-use crate::mandelbrot::Renderable;
+use config::Config;
+use core::panic;
 
 fn main() {
-    
     let args = Args::parse();
 
     let blue_gold_palette = vec![
@@ -27,7 +26,15 @@ fn main() {
         Color::new(255, 224, 0),   // Gold
     ];
 
-    let mandelbrot = Mandelbrot::new(args.width, args.height, args.bounds.output_start, args.bounds.output_end, 1.0, args.n_max, args.s_max, Some(blue_gold_palette));
+    let mandelbrot = Mandelbrot::new(Config {
+        width: args.width,
+        height: args.height,
+        bounds: args.bounds,
+        factor: 1.0,
+        n_max: args.n_max,
+        s_max: args.s_max,
+        color_pallete: Some(blue_gold_palette),
+    });
 
     match mandelbrot {
         Ok(mut mandelbrot) => {
