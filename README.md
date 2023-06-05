@@ -16,7 +16,7 @@ Options:
   -f, --file-path <FILE_PATH>  Output image path [default: fractal.png]
       --width <WIDTH>          Output image width [default: 1000]
       --height <HEIGHT>        Output image width [default: 1000]
-      --bounds <BOUNDS>        Start/End coordinate on the complex plane (both x and y) [default: "-2.0, 2.0"]
+      --bounds <BOUNDS>        Start/End coordinate on the complex plane (both x and y) [default: -2,1.5]
   -n, --n-max <N_MAX>          Number of iterations to do before assuming point is in the set [default: 64]
   -s, --s-max <S_MAX>          Anti-aliasing [default: 4]
   -h, --help                   Print help

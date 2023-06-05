@@ -27,30 +27,7 @@ fn main() {
         Color::new(255, 224, 0),   // Gold
     ];
 
-    let filtered_bounds: String = args.bounds.chars().filter(|c| !c.is_whitespace()).collect();
-    let bounds: Vec<&str> = filtered_bounds.split(",").collect();
-
-    if bounds.len() != 2 {
-        panic!("Invalid bounds");
-    }
-
-    let output_start = bounds[0].parse::<f64>();
-    let output_end = bounds[1].parse::<f64>();
-
-    match output_start {
-        Ok(start) => {
-        },
-        Err(e) => panic!("Cannot parse start bound {:?}", e)
-    }
-
-    match output_end {
-        Ok(end) => {
-        },  
-        Err(e) => panic!("Cannot parse end bound {:?}", e)
-    }
-
-
-    let mandelbrot = Mandelbrot::new(args.width, args.height, output_start.unwrap(), output_end.unwrap(), 1.0, args.n_max, args.s_max, Some(blue_gold_palette));
+    let mandelbrot = Mandelbrot::new(args.width, args.height, args.bounds.output_start, args.bounds.output_end, 1.0, args.n_max, args.s_max, Some(blue_gold_palette));
 
     match mandelbrot {
         Ok(mut mandelbrot) => {
