@@ -1,3 +1,4 @@
+use crate::args::Bounds;
 use crate::color::Color;
 use crate::config::Config;
 use image::ImageError;
@@ -10,8 +11,7 @@ use std::usize;
 pub struct Mandelbrot {
     width: usize,
     height: usize,
-    output_start: f64,
-    output_end: f64,
+    bounds: Bounds,
     factor: f64,
     n_max: u32,
     s_max: u32,
@@ -77,7 +77,9 @@ impl Mandelbrot {
             return Err(MandelbrotError::InvalidDimentions);
         }
 
-        if config.bounds.output_start >= config.bounds.output_end {
+        if config.bounds.upper_left.re >= config.bounds.lower_right.re
+            || config.bounds.upper_left.im <= config.bounds.lower_right.im
+        {
             return Err(MandelbrotError::InvalidRenderRange);
         }
 
@@ -104,8 +106,7 @@ impl Mandelbrot {
             return Ok(Mandelbrot {
                 width: config.width,
                 height: config.height,
-                output_start: config.bounds.output_start,
-                output_end: config.bounds.output_end,
+                bounds: config.bounds,
                 factor: config.factor,
                 n_max: config.n_max,
                 s_max: config.s_max,
@@ -117,8 +118,7 @@ impl Mandelbrot {
         Ok(Mandelbrot {
             width: config.width,
             height: config.height,
-            output_start: config.bounds.output_start,
-            output_end: config.bounds.output_end,
+            bounds: config.bounds,
             factor: config.factor,
             n_max: config.n_max,
             s_max: config.s_max,
@@ -127,18 +127,21 @@ impl Mandelbrot {
         })
     }
 
-    fn map(
-        input: f64,
-        output_start: f64,
-        output_end: f64,
-        input_start: f64,
-        input_end: f64,
-    ) -> Result<f64, MandelbrotError> {
-        if input_end - input_start == 0.0 {
-            return Err(MandelbrotError::DivideByZero);
+    fn pixel_to_point(
+        bounds: (usize, usize),
+        pixel: (f64, f64),
+        upper_left: Complex<f64>,
+        lower_right: Complex<f64>,
+    ) -> Complex<f64> {
+        let (width, height) = (
+            lower_right.re - upper_left.re,
+            upper_left.im - lower_right.im,
+        );
+        Complex {
+            re: upper_left.re + pixel.0 * width / bounds.0 as f64,
+            im: upper_left.im - pixel.1 * height / bounds.1 as f64, // Why subtraction here? pixel.1 increases as we go down,
+                                                                    // but the imaginary component increases as we go up.
         }
-        Ok(output_start
-            + ((output_end - output_start) / (input_end - input_start)) * (input - input_start))
     }
 
     fn render_band(&self, start: usize, end: usize) -> Vec<Color> {
@@ -186,7 +189,12 @@ impl Mandelbrot {
             let ii = i as f64 + k;
             let jj = j as f64 + k;
 
-            let coordinates = self.pixels_to_coordinates(ii, jj);
+            let coordinates = Self::pixel_to_point(
+                (self.width, self.height),
+                (ii, jj),
+                self.bounds.upper_left,
+                self.bounds.lower_right,
+            );
             let citerations = self.iterate_mandelbrot(coordinates);
 
             n = citerations.2;
@@ -217,31 +225,6 @@ impl Mandelbrot {
             c.b = 0;
         }
         c
-    }
-
-    fn pixels_to_coordinates(&self, i: f64, j: f64) -> Complex<f64> {
-        let complex_i = Mandelbrot::map(
-            i,
-            self.output_start,
-            self.output_end,
-            0 as f64,
-            self.width as f64,
-        )
-        .expect("Divide by 0 occured");
-
-        let complex_j = Mandelbrot::map(
-            j,
-            self.output_start,
-            self.output_end,
-            0 as f64,
-            self.height as f64,
-        )
-        .expect("Divide by 0 occured");
-
-        Complex {
-            re: complex_i,
-            im: complex_j,
-        }
     }
 
     fn iterate_mandelbrot(&self, complex: Complex<f64>) -> (f64, f64, u32) {
@@ -298,8 +281,8 @@ mod tests {
             width: 1000,
             height: 1000,
             bounds: Bounds {
-                output_start: -2.0,
-                output_end: 2.0,
+                upper_left: Complex { re: -2.0, im: 2.0 },
+                lower_right: Complex { re: 2.0, im: -2.0 },
             },
             factor: 1.0,
             n_max: 64,
@@ -315,8 +298,8 @@ mod tests {
             width: 640,
             height: 480,
             bounds: Bounds {
-                output_start: -2.0,
-                output_end: 2.0,
+                upper_left: Complex { re: -2.0, im: 2.0 },
+                lower_right: Complex { re: 2.0, im: -2.0 },
             },
             factor: 1.0,
             n_max: 64,
@@ -335,8 +318,8 @@ mod tests {
             width: 1000,
             height: 1000,
             bounds: Bounds {
-                output_start: 2.0,
-                output_end: -2.0,
+                upper_left: Complex { re: 2.0, im: -2.0 },
+                lower_right: Complex { re: -2.0, im: 2.0 },
             },
             factor: 1.0,
             n_max: 64,
@@ -355,8 +338,8 @@ mod tests {
             width: 1000,
             height: 1000,
             bounds: Bounds {
-                output_start: -2.0,
-                output_end: 2.0,
+                upper_left: Complex { re: -2.0, im: 2.0 },
+                lower_right: Complex { re: 2.0, im: -2.0 },
             },
             factor: 1.0,
             n_max: 0,
@@ -375,8 +358,8 @@ mod tests {
             width: 1000,
             height: 1000,
             bounds: Bounds {
-                output_start: -2.0,
-                output_end: 2.0,
+                upper_left: Complex { re: -2.0, im: 2.0 },
+                lower_right: Complex { re: 2.0, im: -2.0 },
             },
             factor: 1.0,
             n_max: 64,
@@ -396,8 +379,8 @@ mod tests {
             width: 1000,
             height: 1000,
             bounds: Bounds {
-                output_start: -2.0,
-                output_end: 2.0,
+                upper_left: Complex { re: -2.0, im: 2.0 },
+                lower_right: Complex { re: 2.0, im: -2.0 },
             },
             factor: 1.0,
             n_max: n_max,
@@ -422,8 +405,8 @@ mod tests {
             width: 1000,
             height: 1000,
             bounds: Bounds {
-                output_start: -2.0,
-                output_end: 2.0,
+                upper_left: Complex { re: -2.0, im: 2.0 },
+                lower_right: Complex { re: 2.0, im: -2.0 },
             },
             factor: 1.0,
             n_max: 64,
@@ -451,8 +434,8 @@ mod tests {
             width: 1000,
             height: 1000,
             bounds: Bounds {
-                output_start: -2.0,
-                output_end: 2.0,
+                upper_left: Complex { re: -2.0, im: 2.0 },
+                lower_right: Complex { re: 2.0, im: -2.0 },
             },
             factor: 1.0,
             n_max: 64,
@@ -483,8 +466,8 @@ mod tests {
             width: 1000,
             height: 1000,
             bounds: Bounds {
-                output_start: -2.0,
-                output_end: 2.0,
+                upper_left: Complex { re: -2.0, im: 2.0 },
+                lower_right: Complex { re: 2.0, im: -2.0 },
             },
             factor: 1.0,
             n_max: 64,

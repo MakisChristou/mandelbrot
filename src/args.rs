@@ -1,10 +1,11 @@
 use clap::Parser;
+use num::Complex;
 use std::{fmt, str::FromStr};
 
 #[derive(Debug, Clone)]
 pub struct Bounds {
-    pub output_start: f64,
-    pub output_end: f64,
+    pub upper_left: Complex<f64>,
+    pub lower_right: Complex<f64>,
 }
 
 // Automatically convert from a String input to Bounds
@@ -14,20 +15,33 @@ impl FromStr for Bounds {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parts: Vec<&str> = s.split(',').collect();
 
-        if parts.len() != 2 {
+        if parts.len() != 4 {
             return Err("Invalid Bounds");
         }
 
-        let output_start = parts[0]
+        let upper_left_re = parts[0]
             .parse::<f64>()
             .map_err(|_| "Cannot parse start bound")?;
-        let output_end = parts[1]
+        let upper_left_im = parts[1]
+            .parse::<f64>()
+            .map_err(|_| "Cannot parse end bound")?;
+
+        let lower_right_re = parts[2]
+            .parse::<f64>()
+            .map_err(|_| "Cannot parse start bound")?;
+        let lower_right_im = parts[3]
             .parse::<f64>()
             .map_err(|_| "Cannot parse end bound")?;
 
         Ok(Bounds {
-            output_start,
-            output_end,
+            upper_left: Complex {
+                re: upper_left_re,
+                im: upper_left_im,
+            },
+            lower_right: Complex {
+                re: lower_right_re,
+                im: lower_right_im,
+            },
         })
     }
 }
@@ -35,7 +49,11 @@ impl FromStr for Bounds {
 // Required for default_value_t
 impl fmt::Display for Bounds {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{},{}", self.output_start, self.output_end)
+        write!(
+            f,
+            "{},{},{},{}",
+            self.upper_left.re, self.upper_left.im, self.lower_right.re, self.lower_right.im
+        )
     }
 }
 
@@ -56,7 +74,7 @@ pub struct Args {
     pub height: usize,
 
     /// Start/End coordinate on the complex plane (both x and y)
-    #[arg(long, default_value_t = Bounds{output_start: -2.0, output_end: 1.5})]
+    #[arg(long, default_value_t = Bounds{upper_left: Complex{re: -2.0, im: 1.5}, lower_right: Complex{re: 1.5, im: -2.0}})]
     pub bounds: Bounds,
 
     /// Number of iterations to do before assuming point is in the set

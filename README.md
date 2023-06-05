@@ -16,17 +16,18 @@ Options:
   -f, --file-path <FILE_PATH>  Output image path [default: fractal.png]
       --width <WIDTH>          Output image width [default: 1000]
       --height <HEIGHT>        Output image width [default: 1000]
-      --bounds <BOUNDS>        Start/End coordinate on the complex plane (both x and y) [default: -2,1.5]
+      --bounds <BOUNDS>        Start/End coordinate on the complex plane (both x and y) [default: -2,1.5,1.5,-2]
   -n, --n-max <N_MAX>          Number of iterations to do before assuming point is in the set [default: 64]
   -s, --s-max <S_MAX>          Anti-aliasing [default: 4]
   -h, --help                   Print help
+  -V, --version                Print version
   -V, --version                Print version
 ```
 
 ## Example Run
 The following command will render a `fractal.png` file in the current directory.
 ```bash
-$ cargo run --release -- --bounds="-2.0,1.7" --width 2000 --height 2000 -n 16 -s 4
+$ cargo run --release -- --bounds="-2.0,1.7,1.7,-2.0" --width 2000 --height 2000 -n 16 -s 4
 ```
 
 ![Resulting output](images/file5.png)
