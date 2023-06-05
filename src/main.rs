@@ -1,12 +1,20 @@
 pub mod color;
 pub mod mandelbrot;
-use color::Color;
+pub mod args;
 
+
+use core::panic;
+use std::process;
+use args::Args;
+use clap::Parser;
+use color::Color;
 use crate::mandelbrot::Mandelbrot;
 use crate::mandelbrot::Renderable;
 
 fn main() {
     
+    let args = Args::parse();
+
     let blue_gold_palette = vec![
         Color::new(0, 0, 64),      // Dark Blue
         Color::new(0, 0, 128),     // Medium Blue
@@ -19,12 +27,35 @@ fn main() {
         Color::new(255, 224, 0),   // Gold
     ];
 
-    let mandelbrot = Mandelbrot::new(1000, 1000, -2.0, 2.0, 1.0, 64, 4, Some(blue_gold_palette));
+    let filtered_bounds: String = args.bounds.chars().filter(|c| !c.is_whitespace()).collect();
+    let bounds: Vec<&str> = filtered_bounds.split(",").collect();
+
+    if bounds.len() != 2 {
+        panic!("Invalid bounds");
+    }
+
+    let output_start = bounds[0].parse::<f64>();
+    let output_end = bounds[1].parse::<f64>();
+
+    match output_start {
+        Ok(start) => {
+        },
+        Err(e) => panic!("Cannot parse start bound {:?}", e)
+    }
+
+    match output_end {
+        Ok(end) => {
+        },  
+        Err(e) => panic!("Cannot parse end bound {:?}", e)
+    }
+
+
+    let mandelbrot = Mandelbrot::new(args.width, args.height, output_start.unwrap(), output_end.unwrap(), 1.0, args.n_max, args.s_max, Some(blue_gold_palette));
 
     match mandelbrot {
         Ok(mut mandelbrot) => {
             mandelbrot.render();
-            match mandelbrot.save_image("fractal.png") {
+            match mandelbrot.save_image(&args.file_path) {
                 Ok(()) => {}
                 Err(e) => {
                     panic!("Image failed to be saved {:?}", e)

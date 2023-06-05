@@ -6,10 +6,6 @@ use num::Complex;
 use std::thread;
 use std::usize;
 
-use image::ColorType;
-use image::ImageEncoder;
-use std::fs::File;
-
 #[derive(Clone)]
 pub struct Mandelbrot {
     width: usize,
